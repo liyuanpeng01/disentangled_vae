@@ -6,6 +6,18 @@ from __future__ import print_function
 import numpy as np
 
 class DataManager(object):
+  def __init__(self):
+    n = 32.
+    ni = int(n)
+    self.dist = []
+    for i in xrange(ni):
+      for j in xrange(ni):
+        self.dist.append(0.25 * n + (n - i) + (1 + i - (n - i)) * j / n)
+    s = sum(self.dist)
+    for i in xrange(len(self.dist)):
+      self.dist[i] /= s
+    self.offset = ni * ni
+
   def load(self):
     # Load dataset
     dataset_zip = np.load('data/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.npz',
@@ -47,6 +59,13 @@ class DataManager(object):
       img = img.reshape(4096)
       images.append(img)
     return images
+
+  def get_dependent_images(self, indices):
+    dindeices = []
+    for index in indices:
+        x = np.random.choice(len(self.dist), size=1, p=self.dist)
+        dindeices.append(x)
+    return self.get_images(dindeices)
 
   def get_random_images(self, size):
     indices = [np.random.randint(self.n_samples) for i in range(size)]

@@ -6,6 +6,8 @@ from __future__ import print_function
 import numpy as np
 import math
 import tensorflow as tf
+from spatial_transformer import transformer
+from tf_utils import weight_variable, bias_variable
 
 
 def fc_initializer(input_channels, dtype=tf.float32):
@@ -251,3 +253,159 @@ class VAE(object):
     """ Generate data by sampling from latent space. """
     return sess.run( self.x_out,
                      feed_dict={self.z: zs} )
+
+
+class STAE(VAE):
+  """ Beta Variational Auto Encoder. """
+
+
+  def _create_localization_network(self, x, reuse=False):
+    with tf.variable_scope("localization", reuse=reuse) as scope:
+      # %% Since x is currently [batch, height*width], we need to reshape to a
+      # 4-D tensor to use it in a convolutional graph.  If one component of
+      # `shape` is the special value -1, the size of that dimension is
+      # computed so that the total size remains constant.  Since we haven't
+      # defined the batch dimension's shape yet, we use -1 to denote this
+      # dimension should not change size.
+      # x_tensor = tf.reshape(x, [-1, 64, 64, 1])
+
+      # %% We'll setup the two-layer localisation network to figure out the
+      # %% parameters for an affine transformation of the input
+      # %% Create variables for fully connected layer
+      W_fc_loc1 = weight_variable([64 * 64, 20])
+      b_fc_loc1 = bias_variable([20])
+
+      W_fc_loc2 = weight_variable([20, 4])
+      # Use identity transformation as starting point
+      initial = np.array([0., 1., 0., 0.])
+      initial = initial.astype('float32')
+      initial = initial.flatten()
+      b_fc_loc2 = tf.Variable(initial_value=initial, name='b_fc_loc2')
+
+      # %% Define the two layer localisation network
+      h_fc_loc1 = tf.nn.tanh(tf.matmul(x, W_fc_loc1) + b_fc_loc1)
+      # %% We can add dropout for regularizing and to reduce overfitting like so:
+      # keep_prob = tf.placeholder(tf.float32)
+      h_fc_loc1_drop = h_fc_loc1
+      # h_fc_loc1_drop = tf.nn.dropout(h_fc_loc1, keep_prob)
+      # %% Second layer
+      h_fc_loc2 = tf.nn.tanh(tf.matmul(h_fc_loc1_drop, W_fc_loc2) + b_fc_loc2)
+      # theta = tf.split(h_fc_loc2, 4, axis=1)
+      theta = h_fc_loc2
+    return theta
+
+  def _get_rotation_matrix(self, phi):
+    cos = tf.cos(phi)
+    sin = tf.sin(phi)
+
+    zero = 0. * phi
+    one = zero + 1.
+
+    matrix = tf.stack([cos, -sin, zero, sin, cos, zero, zero, zero, one],
+                      axis=1)
+    matrix = tf.reshape(matrix, [-1, 3, 3])
+    return matrix
+
+  def _get_scaling_matrix(self, s):
+    zero = 0. * s
+    one = zero + 1.
+
+    matrix = tf.stack([s, zero, zero, zero, s, zero, zero, zero, one], axis=1)
+    matrix = tf.reshape(matrix, [-1, 3, 3])
+    return matrix
+
+  def _get_translation_matrix(self, tx, ty):
+    zero = 0. * tx
+    one = zero + 1.
+    matrix = tf.stack([one, zero, tx, zero, one, ty, zero, zero, one], axis=1)
+    matrix = tf.reshape(matrix, [-1, 3, 3])
+    return matrix
+
+  def _get_matrix(self, theta, inverse=False):
+    phi, s, tx, ty = tf.split(theta, 4, axis=1)
+
+    if inverse:
+      phi = -phi
+      s = 1. / s
+      tx = - tx
+      ty = -ty
+
+    R = self._get_rotation_matrix(phi)
+    S = self._get_scaling_matrix(s)
+    T = self._get_translation_matrix(tx, ty)
+    order = [T, S, R]
+
+    if inverse:
+      order.reverse()
+
+    # m = tf.matmul(order[1], order[2])
+    # m = tf.matmul(order[0], m)
+    m = T
+    m = tf.split(m, [2, 1], axis=1)
+    m = tf.reshape(m[0], [-1, 6])
+    return m
+
+  def _create_network(self):
+    # tf Graph input
+    self.x = tf.placeholder(tf.float32, shape=[None, 4096], name='x')
+
+    # localization
+    theta = self._create_localization_network(self.x)
+
+    with tf.variable_scope("input_transform_matrix"):
+      A = self._get_matrix(theta)
+
+    x_tensor = tf.reshape(self.x, [-1, 64, 64, 1])
+    out_size = (64, 64)
+    c = transformer(x_tensor, A, out_size)
+    c_flat = tf.reshape(c, [-1, 64 * 64])
+
+    h = tf.layers.dense(c_flat, 6, name="encoder")
+
+    self.z = tf.concat([theta, h], axis=1, name='z')
+
+    theta2, h2 = tf.split(self.z, [4, 6], axis=1)
+    # h2 = tf.nn.dropout(h2, 0.2)
+
+    c_hat_flat = tf.layers.dense(h2, 64 * 64, name="decoder")
+    c_hat = tf.reshape(c_hat_flat, [-1, 64, 64, 1])
+
+    with tf.variable_scope("output_transform_matrix"):
+      A_inv = self._get_matrix(theta2, inverse=True)
+    x_hat = transformer(c_hat, A_inv, out_size)
+
+    self.x_out_logit = tf.reshape(x_hat, [-1, 64 * 64], name="x_out_logit")
+    self.x_out = tf.nn.sigmoid(self.x_out_logit, name="x_out")
+
+    self.z_mean = self.z
+    self.z_log_sigma_sq = self.z
+
+  def _create_loss_optimizer(self):
+    # Reconstruction loss
+    reconstr_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=self.x,
+                                                            logits=self.x_out_logit)
+    reconstr_loss = tf.reduce_sum(reconstr_loss, 1)
+    self.reconstr_loss = tf.reduce_mean(reconstr_loss)
+
+    # Latent loss
+    # latent_loss = -0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq
+    #                                   - tf.square(self.z_mean)
+    #                                   - tf.exp(self.z_log_sigma_sq), 1)
+    # self.latent_loss = tf.reduce_mean(latent_loss)
+    self.latent_loss = tf.constant(0)
+
+    # Encoding capcity
+    self.capacity = tf.placeholder(tf.float32, shape=[])
+
+    # Loss with encoding capacity term
+    # self.loss = self.reconstr_loss + self.gamma * tf.abs(self.latent_loss - self.capacity)
+    self.loss = self.reconstr_loss
+
+    reconstr_loss_summary_op = tf.summary.scalar('reconstr_loss',
+                                                 self.reconstr_loss)
+    latent_loss_summary_op = tf.summary.scalar('latent_loss', self.latent_loss)
+    self.summary_op = tf.summary.merge(
+      [reconstr_loss_summary_op, latent_loss_summary_op])
+
+    self.optimizer = tf.train.AdamOptimizer(
+      learning_rate=self.learning_rate).minimize(self.loss)

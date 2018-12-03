@@ -10,6 +10,7 @@ import os
 from scipy.misc import imsave
 
 from model import VAE
+from model import STAE
 from data_manager import DataManager
 
 tf.app.flags.DEFINE_integer("epoch_size", 2000, "epoch size")
@@ -22,6 +23,7 @@ tf.app.flags.DEFINE_integer("capacity_change_duration", 100000,
 tf.app.flags.DEFINE_float("learning_rate", 5e-4, "learning rate")
 tf.app.flags.DEFINE_string("checkpoint_dir", "checkpoints", "checkpoint directory")
 tf.app.flags.DEFINE_string("log_file", "./log", "log file directory")
+tf.app.flags.DEFINE_string("model_type", "vae", "model type")
 tf.app.flags.DEFINE_boolean("training", True, "training or not")
 
 flags = tf.app.flags.FLAGS
@@ -43,18 +45,20 @@ def train(sess,
   
   # Training cycle
   for epoch in range(flags.epoch_size):
+    print('epoch', epoch)
     # Shuffle image indices
     random.shuffle(indices)
     
     avg_cost = 0.0
     total_batch = n_samples // flags.batch_size
-    
+    #total_batch = 100
+
     # Loop over all batches
     for i in range(total_batch):
       # Generate image batch
       batch_indices = indices[flags.batch_size*i : flags.batch_size*(i+1)]
-      batch_xs = manager.get_images(batch_indices)
-      
+      batch_xs = manager.get_dependent_images(batch_indices)
+
       # Fit training using batch data
       reconstr_loss, latent_loss, summary_str = model.partial_fit(sess, batch_xs, step)
       summary_writer.add_summary(summary_str, step)
@@ -140,11 +144,20 @@ def main(argv):
   manager.load()
 
   sess = tf.Session()
-  
-  model = VAE(gamma=flags.gamma,
-              capacity_limit=flags.capacity_limit,
-              capacity_change_duration=flags.capacity_change_duration,
-              learning_rate=flags.learning_rate)
+
+  if flags.model_type == "vae":
+    model = VAE(gamma=flags.gamma,
+                capacity_limit=flags.capacity_limit,
+                capacity_change_duration=flags.capacity_change_duration,
+                learning_rate=flags.learning_rate)
+  elif flags.model_type == "stn":
+    model = STAE(gamma=flags.gamma,
+                capacity_limit=flags.capacity_limit,
+                capacity_change_duration=flags.capacity_change_duration,
+                learning_rate=flags.learning_rate)
+  else:
+    raise ValueError("Model type is not defined: " + flags.model_type)
+  print("Model type is " + flags.model_type)
   
   sess.run(tf.global_variables_initializer())
 

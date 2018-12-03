@@ -2,4 +2,6 @@ checkpoints*/*
 *.pyc
 log/*
 disentangle_img
+disentangle_anim
+reconstr_img
 .idea
