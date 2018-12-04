@@ -112,9 +112,14 @@ def disentangle_check(sess, model, manager, save_original=False):
   if not os.path.exists("disentangle_img"):
     os.mkdir("disentangle_img")
 
+  if flags.model_type == "vae":
+    rng = 3.
+  elif flags.model_type == "stn":
+    rng = 1.
+
   for target_z_index in range(n_z):
     for ri in range(n_z):
-      value = -3.0 + (6.0 / 9.0) * ri
+      value = -rng + ((2 * rng) / 9.0) * ri
       z_mean2 = np.zeros((1, n_z))
       for i in range(n_z):
         if( i == target_z_index ):
