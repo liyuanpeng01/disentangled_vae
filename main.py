@@ -24,9 +24,14 @@ tf.app.flags.DEFINE_float("learning_rate", 5e-4, "learning rate")
 tf.app.flags.DEFINE_string("checkpoint_dir", "checkpoints", "checkpoint directory")
 tf.app.flags.DEFINE_string("log_file", "./log", "log file directory")
 tf.app.flags.DEFINE_string("model_type", "vae", "model type")
+tf.app.flags.DEFINE_string("expriment_name", "default", "experiment name")
 tf.app.flags.DEFINE_boolean("training", True, "training or not")
+tf.app.flags.DEFINE_boolean("short_training", False, "training or not")
 
 flags = tf.app.flags.FLAGS
+
+my_path = "output/" + flags.expriment_name + "/"
+
 
 def train(sess,
           model,
@@ -50,8 +55,10 @@ def train(sess,
     random.shuffle(indices)
     
     avg_cost = 0.0
-    #total_batch = n_samples // flags.batch_size
-    total_batch = 100
+    if flags.short_training:
+      total_batch = 100
+    else:
+      total_batch = n_samples // flags.batch_size
 
     # Loop over all batches
     for i in range(total_batch):
@@ -71,28 +78,28 @@ def train(sess,
     disentangle_check(sess, model, manager)
 
     # Save checkpoint
-    saver.save(sess, flags.checkpoint_dir + '/' + 'checkpoint', global_step = step)
+    saver.save(sess, my_path + flags.checkpoint_dir + '/' + 'checkpoint', global_step = step)
 
     
 def reconstruct_check(sess, model, images):
   # Check image reconstruction
   x_reconstruct = model.reconstruct(sess, images)
 
-  if not os.path.exists("reconstr_img"):
-    os.mkdir("reconstr_img")
+  if not os.path.exists(my_path + "reconstr_img"):
+    os.mkdir(my_path + "reconstr_img")
 
   for i in range(len(images)):
     org_img = images[i].reshape(64, 64)
     org_img = org_img.astype(np.float32)
     reconstr_img = x_reconstruct[i].reshape(64, 64)
-    imsave("reconstr_img/org_{0}.png".format(i),      org_img)
-    imsave("reconstr_img/reconstr_{0}.png".format(i), reconstr_img)
+    imsave(my_path + "reconstr_img/org_{0}.png".format(i),      org_img)
+    imsave(my_path + "reconstr_img/reconstr_{0}.png".format(i), reconstr_img)
 
 
 def disentangle_check(sess, model, manager, save_original=False):
   img = manager.get_image(shape=1, scale=2, orientation=5)
   if save_original:
-    imsave("original.png", img.reshape(64, 64).astype(np.float32))
+    imsave(my_path + "original.png", img.reshape(64, 64).astype(np.float32))
     
   batch_xs = [img]
   z_mean, z_log_sigma_sq = model.transform(sess, batch_xs)
@@ -109,8 +116,8 @@ def disentangle_check(sess, model, manager, save_original=False):
   z_m = z_mean[0]
   n_z = 10
 
-  if not os.path.exists("disentangle_img"):
-    os.mkdir("disentangle_img")
+  if not os.path.exists(my_path + "disentangle_img"):
+    os.mkdir(my_path + "disentangle_img")
 
   if flags.model_type == "vae":
     rng = 3.
@@ -128,23 +135,26 @@ def disentangle_check(sess, model, manager, save_original=False):
           z_mean2[0][i] = z_m[i]
       reconstr_img = model.generate(sess, z_mean2)
       rimg = reconstr_img[0].reshape(64, 64)
-      imsave("disentangle_img/check_z{0}_{1}.png".format(target_z_index,ri), rimg)
+      imsave(my_path + "disentangle_img/check_z{0}_{1}.png".format(target_z_index,ri), rimg)
       
 
 def load_checkpoints(sess):
   saver = tf.train.Saver()
-  checkpoint = tf.train.get_checkpoint_state(flags.checkpoint_dir)
+  checkpoint = tf.train.get_checkpoint_state(my_path + flags.checkpoint_dir)
   if checkpoint and checkpoint.model_checkpoint_path:
-    saver.restore(sess, checkpoint.model_checkpoint_path)
-    print("loaded checkpoint: {0}".format(checkpoint.model_checkpoint_path))
+    saver.restore(sess, my_path + checkpoint.model_checkpoint_path)
+    print("loaded checkpoint: {0}".format(my_path + checkpoint.model_checkpoint_path))
   else:
     print("Could not find old checkpoint")
-    if not os.path.exists(flags.checkpoint_dir):
-      os.mkdir(flags.checkpoint_dir)
+    if not os.path.exists(my_path + flags.checkpoint_dir):
+      os.mkdir(my_path + flags.checkpoint_dir)
   return saver
 
 
 def main(argv):
+  if not os.path.isdir(my_path):
+    os.makedirs(my_path)
+
   manager = DataManager()
   manager.load()
 
