@@ -372,19 +372,23 @@ class STAE(VAE):
 
     with tf.variable_scope("output_transform_matrix"):
       A_inv = self._get_matrix(theta2, inverse=True)
+    c_hat = tf.nn.sigmoid(c_hat, name="sigmoid_c_hat")
     x_hat = transformer(c_hat, A_inv, out_size)
 
     self.x_out_logit = tf.reshape(x_hat, [-1, 64 * 64], name="x_out_logit")
-    self.x_out = tf.nn.sigmoid(self.x_out_logit, name="x_out")
+    self.x_out = self.x_out_logit
+    #self.x_out = tf.nn.sigmoid(self.x_out_logit, name="x_out")
 
     self.z_mean = self.z
     self.z_log_sigma_sq = self.z
 
   def _create_loss_optimizer(self):
     # Reconstruction loss
-    reconstr_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=self.x,
-                                                            logits=self.x_out_logit)
-    reconstr_loss = tf.reduce_sum(reconstr_loss, 1)
+    #reconstr_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=self.x,
+    #                                                        logits=self.x_out_logit)
+    # reconstr_loss = tf.reduce_sum(reconstr_loss, 1)
+    reconstr_loss = tf.losses.sigmoid_cross_entropy(self.x, self.x_out_logit)
+
     self.reconstr_loss = tf.reduce_mean(reconstr_loss)
 
     # Latent loss

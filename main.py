@@ -50,8 +50,8 @@ def train(sess,
     random.shuffle(indices)
     
     avg_cost = 0.0
-    total_batch = n_samples // flags.batch_size
-    #total_batch = 100
+    #total_batch = n_samples // flags.batch_size
+    total_batch = 100
 
     # Loop over all batches
     for i in range(total_batch):
