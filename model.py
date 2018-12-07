@@ -275,7 +275,7 @@ class BetaVAE(VAE):
     self.capacity = tf.placeholder(tf.float32, shape=[])
 
     # Loss with encoding capacity term
-    self.loss = self.reconstr_loss + self.gamma * tf.abs(self.latent_loss)
+    self.loss = self.reconstr_loss + self.gamma * self.latent_loss
 
     reconstr_loss_summary_op = tf.summary.scalar('reconstr_loss',
                                                  self.reconstr_loss)
