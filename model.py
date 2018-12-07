@@ -255,6 +255,38 @@ class VAE(object):
                      feed_dict={self.z: zs} )
 
 
+class BetaVAE(VAE):
+  """ Beta Variational Auto Encoder. """
+
+  def _create_loss_optimizer(self):
+    # Reconstruction loss
+    reconstr_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=self.x,
+                                                            logits=self.x_out_logit)
+    reconstr_loss = tf.reduce_sum(reconstr_loss, 1)
+    self.reconstr_loss = tf.reduce_mean(reconstr_loss)
+
+    # Latent loss
+    latent_loss = -0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq
+                                       - tf.square(self.z_mean)
+                                       - tf.exp(self.z_log_sigma_sq), 1)
+    self.latent_loss = tf.reduce_mean(latent_loss)
+
+    # Encoding capcity
+    self.capacity = tf.placeholder(tf.float32, shape=[])
+
+    # Loss with encoding capacity term
+    self.loss = self.reconstr_loss + self.gamma * tf.abs(self.latent_loss)
+
+    reconstr_loss_summary_op = tf.summary.scalar('reconstr_loss',
+                                                 self.reconstr_loss)
+    latent_loss_summary_op = tf.summary.scalar('latent_loss', self.latent_loss)
+    self.summary_op = tf.summary.merge(
+      [reconstr_loss_summary_op, latent_loss_summary_op])
+
+    self.optimizer = tf.train.AdamOptimizer(
+      learning_rate=self.learning_rate).minimize(self.loss)
+
+
 class STAE(VAE):
   """ Beta Variational Auto Encoder. """
 

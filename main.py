@@ -10,6 +10,7 @@ import os
 from scipy.misc import imsave
 
 from model import VAE
+from model import BetaVAE
 from model import STAE
 from data_manager import DataManager
 
@@ -119,10 +120,12 @@ def disentangle_check(sess, model, manager, save_original=False):
   if not os.path.exists(my_path + "disentangle_img"):
     os.mkdir(my_path + "disentangle_img")
 
-  if flags.model_type == "vae":
+  if flags.model_type == "vae" or flags.model_type == "beta":
     rng = 3.
   elif flags.model_type == "stn":
     rng = 1.
+  else:
+    raise ValueError("Model type is not defined: " + flags.model_type)
 
   for target_z_index in range(n_z):
     for ri in range(n_z):
@@ -162,6 +165,11 @@ def main(argv):
 
   if flags.model_type == "vae":
     model = VAE(gamma=flags.gamma,
+                capacity_limit=flags.capacity_limit,
+                capacity_change_duration=flags.capacity_change_duration,
+                learning_rate=flags.learning_rate)
+  elif flags.model_type == "beta":
+    model = BetaVAE(gamma=flags.gamma,
                 capacity_limit=flags.capacity_limit,
                 capacity_change_duration=flags.capacity_change_duration,
                 learning_rate=flags.learning_rate)
