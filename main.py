@@ -13,9 +13,11 @@ from model import VAE
 from model import BetaVAE
 from model import STAE
 from data_manager import DataManager
+from evaluation import get_ave_recall
 
 tf.app.flags.DEFINE_integer("epoch_size", 2000, "epoch size")
 tf.app.flags.DEFINE_integer("batch_size", 64, "batch size")
+tf.app.flags.DEFINE_integer("random_seed", 42, "random seed")
 tf.app.flags.DEFINE_float("gamma", 100.0, "gamma param for latent loss")
 tf.app.flags.DEFINE_float("capacity_limit", 20.0,
                           "encoding capacity limit param for latent loss")
@@ -78,6 +80,8 @@ def train(sess,
     # Disentangle check
     disentangle_check(sess, model, manager)
 
+    transform_check(sess, model, manager)
+
     # Save checkpoint
     saver.save(sess, my_path + flags.checkpoint_dir + '/' + 'checkpoint', global_step = step)
 
@@ -139,14 +143,32 @@ def disentangle_check(sess, model, manager, save_original=False):
       reconstr_img = model.generate(sess, z_mean2)
       rimg = reconstr_img[0].reshape(64, 64)
       imsave(my_path + "disentangle_img/check_z{0}_{1}.png".format(target_z_index,ri), rimg)
-      
+
+
+def transform_check(sess, model, manager):
+  a = []
+  batch_xs = []
+  for i in xrange(32):
+    for j in xrange(32):
+      img = manager.get_image(shape=1, scale=2, orientation=5, x=i, y=j)
+      a.append([i, j])
+      batch_xs.append(img)
+  z_mean, z_log_sigma_sq = model.transform(sess, batch_xs)
+
+  a = np.transpose(a)
+  b = np.transpose(z_mean)
+
+  avg_coef, cor_list = get_ave_recall(a, b)
+  print("Average correlation coefficient: ", avg_coef)
+  print(cor_list)
+
 
 def load_checkpoints(sess):
   saver = tf.train.Saver()
   checkpoint = tf.train.get_checkpoint_state(my_path + flags.checkpoint_dir)
   if checkpoint and checkpoint.model_checkpoint_path:
-    saver.restore(sess, my_path + checkpoint.model_checkpoint_path)
-    print("loaded checkpoint: {0}".format(my_path + checkpoint.model_checkpoint_path))
+    saver.restore(sess, checkpoint.model_checkpoint_path)
+    print("loaded checkpoint: {0}".format(checkpoint.model_checkpoint_path))
   else:
     print("Could not find old checkpoint")
     if not os.path.exists(my_path + flags.checkpoint_dir):
@@ -155,6 +177,11 @@ def load_checkpoints(sess):
 
 
 def main(argv):
+  seed = flags.random_seed
+  random.seed(seed)
+  np.random.seed(seed)
+  tf.set_random_seed(seed)
+
   if not os.path.isdir(my_path):
     os.makedirs(my_path)
 
