@@ -370,9 +370,8 @@ class STAE(VAE):
     if inverse:
       order.reverse()
 
-    # m = tf.matmul(order[1], order[2])
-    # m = tf.matmul(order[0], m)
-    m = T
+    m = tf.matmul(order[1], order[2])
+    m = tf.matmul(order[0], m)
     m = tf.split(m, [2, 1], axis=1)
     m = tf.reshape(m[0], [-1, 6])
     return m

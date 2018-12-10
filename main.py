@@ -27,6 +27,7 @@ tf.app.flags.DEFINE_float("learning_rate", 5e-4, "learning rate")
 tf.app.flags.DEFINE_string("checkpoint_dir", "checkpoints", "checkpoint directory")
 tf.app.flags.DEFINE_string("log_file", "./log", "log file directory")
 tf.app.flags.DEFINE_string("model_type", "vae", "model type")
+tf.app.flags.DEFINE_string("task_type", "position", "task type")
 tf.app.flags.DEFINE_string("expriment_name", "default", "experiment name")
 tf.app.flags.DEFINE_boolean("training", True, "training or not")
 tf.app.flags.DEFINE_boolean("short_training", False, "training or not")
@@ -47,15 +48,16 @@ def train(sess,
 
   reconstruct_check_images = manager.get_random_images(10)
 
-  indices = list(range(n_samples))
+  #indices = list(range(n_samples))
 
   step = 0
-  
+
   # Training cycle
   for epoch in range(flags.epoch_size):
     print('epoch', epoch)
     # Shuffle image indices
-    random.shuffle(indices)
+    #random.shuffle(indices)
+    indices = manager.get_dependent_indices(n_samples)
     
     avg_cost = 0.0
     if flags.short_training:
@@ -67,8 +69,7 @@ def train(sess,
     for i in range(total_batch):
       # Generate image batch
       batch_indices = indices[flags.batch_size*i : flags.batch_size*(i+1)]
-      batch_xs = manager.get_dependent_images(batch_indices)
-
+      batch_xs = manager.get_images(batch_indices)
       # Fit training using batch data
       reconstr_loss, latent_loss, summary_str = model.partial_fit(sess, batch_xs, step)
       summary_writer.add_summary(summary_str, step)
@@ -80,6 +81,8 @@ def train(sess,
     # Disentangle check
     disentangle_check(sess, model, manager)
 
+    # Transform check
+    print("Evaluating transforming.")
     transform_check(sess, model, manager)
 
     # Save checkpoint
@@ -147,16 +150,37 @@ def disentangle_check(sess, model, manager, save_original=False):
 
 def transform_check(sess, model, manager):
   a = []
-  batch_xs = []
-  for i in xrange(32):
-    for j in xrange(32):
-      img = manager.get_image(shape=1, scale=2, orientation=5, x=i, y=j)
-      a.append([i, j])
-      batch_xs.append(img)
-  z_mean, z_log_sigma_sq = model.transform(sess, batch_xs)
+  b = []
+
+  if flags.task_type == 'position':
+    for i in xrange(32):
+      batch_xs = []
+      for j in xrange(32):
+        img = manager.get_image(shape=1, scale=2, orientation=5, x=i, y=j)
+        a.append([i, j])
+        batch_xs.append(img)
+      z_mean, _ = model.transform(sess, batch_xs)
+      b.extend(z_mean)
+
+  elif flags.task_type == 'onecolor':
+    for shape in xrange(3):
+      for scale in xrange(6):
+        for orientation in xrange(40):
+          batch_xs = []
+          for i in xrange(32):
+            for j in xrange(32):
+              img = manager.get_image(
+                shape=shape, scale=scale, orientation=orientation, x=i, y=j)
+              a.append([shape, scale, orientation, i, j])
+              batch_xs.append(img)
+          z_mean, _ = model.transform(sess, batch_xs)
+          b.extend(z_mean)
+
+  else:
+    raise ValueError("Task type is not defined: " + flags.task_type)
 
   a = np.transpose(a)
-  b = np.transpose(z_mean)
+  b = np.transpose(b)
 
   avg_coef, cor_list = get_ave_recall(a, b)
   print("Average correlation coefficient: ", avg_coef)
@@ -185,7 +209,13 @@ def main(argv):
   if not os.path.isdir(my_path):
     os.makedirs(my_path)
 
-  manager = DataManager()
+  if flags.task_type == 'position':
+    dist_file_name = None
+  elif flags.task_type == 'onecolor':
+    dist_file_name = 'distributions/one_color.list'
+  else:
+    raise ValueError("Task type is not defined: " + flags.task_type)
+  manager = DataManager(dist_file_name)
   manager.load()
 
   sess = tf.Session()

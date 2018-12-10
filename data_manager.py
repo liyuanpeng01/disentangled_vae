@@ -6,17 +6,21 @@ from __future__ import print_function
 import numpy as np
 
 class DataManager(object):
-  def __init__(self):
+  def __init__(self, dist_file_name=None):
     n = 32.
     ni = int(n)
-    self.dist = []
-    for i in xrange(ni):
-      for j in xrange(ni):
-        self.dist.append(0.25 * n + (n - i) + (1 + i - (n - i)) * j / n)
-    s = sum(self.dist)
-    for i in xrange(len(self.dist)):
-      self.dist[i] /= s
-    self.offset = ni * ni
+    if dist_file_name is None:
+      self.dist = []
+      for i in xrange(ni):
+        for j in xrange(ni):
+          self.dist.append(0.25 * n + (n - i) + (1 + i - (n - i)) * j / n)
+      s = sum(self.dist)
+      for i in xrange(len(self.dist)):
+        self.dist[i] /= s
+    else:
+      with open(dist_file_name, 'r') as f:
+        self.dist = [float(x) for x in f.readlines()]
+    assert np.isclose(sum(self.dist), 1.)
 
   def load(self):
     # Load dataset
@@ -60,12 +64,8 @@ class DataManager(object):
       images.append(img)
     return images
 
-  def get_dependent_images(self, indices):
-    dindeices = []
-    for index in indices:
-        x = np.random.choice(len(self.dist), size=1, p=self.dist)
-        dindeices.append(x)
-    return self.get_images(dindeices)
+  def get_dependent_indices(self, size):
+    return np.random.choice(len(self.dist), size=size, p=self.dist)
 
   def get_random_images(self, size):
     indices = [np.random.randint(self.n_samples) for i in range(size)]
