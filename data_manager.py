@@ -4,12 +4,54 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+import math
+
+class Distribution(object):
+  def get_distribution(self, x):
+    scores = self.get_scores(x)
+    ss = sum(scores)
+    return [x / ss for x in scores]
+
+  def get_scores(self, valuables, values=[]):
+    if len(valuables) == 0:
+      return [self.get_score(values)]
+    dist = []
+    r = valuables[0]
+    values.append(0)
+    for i in xrange(r):
+      value = 2. * (r - i) / float(r) - 1
+      values[-1] = value
+      dist.extend(self.get_scores(valuables[1:], values))
+    values.pop()
+    return dist
+
+  def get_score(self, x):
+    pass
+
+class LinearDistribution(Distribution):
+  def get_score(self, x):
+    score = 1
+    for xi in x:
+      score *= xi
+    score = 1 - score
+    return score
+
+class GaussianDistribution(Distribution):
+  def get_score(self, x):
+    score = 0
+    for xi in x:
+      score += xi * xi
+    for xi in x:
+      for xj in x:
+        score += xi * xj
+    score = math.exp(-score)
+    return score
 
 class DataManager(object):
-  def __init__(self, dist_file_name=None):
+  def __init__(self, dist_type=None):
     n = 32.
     ni = int(n)
-    if dist_file_name is None:
+    if dist_type is None:
       self.dist = []
       for i in xrange(ni):
         for j in xrange(ni):
@@ -17,8 +59,14 @@ class DataManager(object):
       s = sum(self.dist)
       for i in xrange(len(self.dist)):
         self.dist[i] /= s
+    elif dist_type == 'linear':
+      dist = LinearDistribution()
+      self.dist = dist.get_distribution([ni, ni])
+    elif dist_type == 'gaussian':
+      dist = GaussianDistribution()
+      self.dist = dist.get_distribution([ni, ni])
     else:
-      with open(dist_file_name, 'r') as f:
+      with open(dist_type, 'r') as f:
         self.dist = [float(x) for x in f.readlines()]
     assert np.isclose(sum(self.dist), 1.)
 

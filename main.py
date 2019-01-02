@@ -28,6 +28,7 @@ tf.app.flags.DEFINE_string("checkpoint_dir", "checkpoints", "checkpoint director
 tf.app.flags.DEFINE_string("log_file", "./log", "log file directory")
 tf.app.flags.DEFINE_string("model_type", "vae", "model type")
 tf.app.flags.DEFINE_string("task_type", "position", "task type")
+tf.app.flags.DEFINE_string("dist_type", 'linear', "distribution type")
 tf.app.flags.DEFINE_string("expriment_name", "default", "experiment name")
 tf.app.flags.DEFINE_boolean("training", True, "training or not")
 tf.app.flags.DEFINE_boolean("short_training", False, "training or not")
@@ -209,13 +210,7 @@ def main(argv):
   if not os.path.isdir(my_path):
     os.makedirs(my_path)
 
-  if flags.task_type == 'position':
-    dist_file_name = None
-  elif flags.task_type == 'onecolor':
-    dist_file_name = 'distributions/one_color.list'
-  else:
-    raise ValueError("Task type is not defined: " + flags.task_type)
-  manager = DataManager(dist_file_name)
+  manager = DataManager(flags.dist_type)
   manager.load()
 
   sess = tf.Session()
