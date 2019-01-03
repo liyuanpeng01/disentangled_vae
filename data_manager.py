@@ -8,6 +8,7 @@ import math
 
 class Distribution(object):
   def get_distribution(self, x):
+    x.reverse()
     scores = self.get_scores(x)
     ss = sum(scores)
     return [x / ss for x in scores]
@@ -16,13 +17,13 @@ class Distribution(object):
     if len(valuables) == 0:
       return [self.get_score(values)]
     dist = []
-    r = valuables[0]
+    r = valuables.pop()
     values.append(0)
     for i in xrange(r):
-      value = 2. * (r - i) / float(r) - 1
-      values[-1] = value
-      dist.extend(self.get_scores(valuables[1:], values))
+      values[-1] = (2. * i) / (r - 1.) - 1
+      dist.extend(self.get_scores(valuables, values))
     values.pop()
+    valuables.append(r)
     return dist
 
   def get_score(self, x):
