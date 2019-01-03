@@ -39,11 +39,9 @@ class LinearDistribution(Distribution):
 class GaussianDistribution(Distribution):
   def get_score(self, x):
     score = 0
-    for xi in x:
-      score += xi * xi
-    for xi in x:
-      for xj in x:
-        score += xi * xj
+    for i in xrange(len(x)):
+      for j in xrange(i, len(x)):
+        score += x[i] * x[j]
     score = math.exp(-score)
     return score
 
