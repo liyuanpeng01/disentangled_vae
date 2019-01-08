@@ -400,11 +400,12 @@ class STAE(VAE):
       A = self._get_matrix(theta)
 
     x_tensor = tf.reshape(self.x, [-1, 64, 64, 1])
-    out_size = (64, 64)
+    csize = 16
+    out_size = (csize, csize)
     c = transformer(x_tensor, A, out_size)
 
     with tf.variable_scope("encoder"):
-      c_flat = tf.reshape(c, [-1, 64 * 64])
+      c_flat = tf.reshape(c, [-1, csize * csize])
       h = self.ff_network(c_flat, 1, 16, 6)
 
     self.z = tf.concat([theta, h], axis=1, name='z')
@@ -413,13 +414,13 @@ class STAE(VAE):
     # h2 = tf.nn.dropout(h2, 0.2)
 
     with tf.variable_scope("decoder"):
-      c_hat_flat = self.ff_network(h2, 1, 16, 64 * 64)
-      c_hat = tf.reshape(c_hat_flat, [-1, 64, 64, 1])
+      c_hat_flat = self.ff_network(h2, 1, 16, csize * csize)
+      c_hat = tf.reshape(c_hat_flat, [-1, csize, csize, 1])
 
     with tf.variable_scope("output_transform_matrix"):
       A_inv = self._get_matrix(theta2, inverse=True)
     #c_hat = tf.nn.sigmoid(c_hat, name="sigmoid_c_hat")
-    x_hat = transformer(c_hat, A_inv, out_size)
+    x_hat = transformer(c_hat, A_inv, (64, 64))
 
     self.x_out_logit = tf.reshape(x_hat, [-1, 64 * 64], name="x_out_logit")
     self.x_out = self.x_out_logit
