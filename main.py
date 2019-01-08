@@ -47,7 +47,11 @@ def train(sess,
   
   n_samples = manager.sample_size
 
-  reconstruct_check_images = manager.get_random_images(10)
+  #reconstruct_check_images = manager.get_random_images(10)
+  reconstruct_check_images = []
+  reconstruct_check_images.append(manager.get_image(0, 0, 0, 0, 0))
+  reconstruct_check_images.append(manager.get_image(1, 0, 0, 0, 0))
+  reconstruct_check_images.append(manager.get_image(2, 0, 0, 0, 0))
 
   #indices = list(range(n_samples))
 
@@ -59,10 +63,20 @@ def train(sess,
     # Shuffle image indices
     #random.shuffle(indices)
     indices = manager.get_dependent_indices(n_samples)
-    
+    a = []
+    for index in indices:
+      shape = index // (32 * 32)
+      x = (index // 32) % 32
+      y = index % 32
+      x = 0
+      y = 0
+      latents = [0, shape, 0, 0, x, y]
+      a.append(np.dot(latents, manager.latents_bases).astype(int))
+    indices = a
+
     avg_cost = 0.0
     if flags.short_training:
-      total_batch = 100
+      total_batch = 4000
     else:
       total_batch = n_samples // flags.batch_size
 
@@ -73,8 +87,10 @@ def train(sess,
       batch_xs = manager.get_images(batch_indices)
       # Fit training using batch data
       reconstr_loss, latent_loss, summary_str = model.partial_fit(sess, batch_xs, step)
+      #print(i, reconstr_loss)
       summary_writer.add_summary(summary_str, step)
       step += 1
+    print('reconstructin loss: ', reconstr_loss)
 
     # Image reconstruction check
     reconstruct_check(sess, model, reconstruct_check_images)
@@ -106,7 +122,7 @@ def reconstruct_check(sess, model, images):
 
 
 def disentangle_check(sess, model, manager, save_original=False):
-  img = manager.get_image(shape=1, scale=2, orientation=5)
+  img = manager.get_image(shape=0, scale=2, orientation=5)
   if save_original:
     imsave(my_path + "original.png", img.reshape(64, 64).astype(np.float32))
     
@@ -131,7 +147,7 @@ def disentangle_check(sess, model, manager, save_original=False):
   if flags.model_type == "vae" or flags.model_type == "beta":
     rng = 3.
   elif flags.model_type == "stn":
-    rng = 1.
+    rng = 0.5
   else:
     raise ValueError("Model type is not defined: " + flags.model_type)
 
@@ -152,6 +168,9 @@ def disentangle_check(sess, model, manager, save_original=False):
 def transform_check(sess, model, manager):
   a = []
   b = []
+  shape = 1
+  scale = 2
+  orientation = 5
 
   if flags.task_type == 'position':
     for i in xrange(32):
@@ -176,6 +195,18 @@ def transform_check(sess, model, manager):
               batch_xs.append(img)
           z_mean, _ = model.transform(sess, batch_xs)
           b.extend(z_mean)
+
+  elif flags.task_type == 'shape_position':
+    for shape in xrange(3):
+      batch_xs = []
+      for i in xrange(32):
+        for j in xrange(32):
+          img = manager.get_image(
+            shape=shape, scale=scale, orientation=orientation, x=i, y=j)
+          a.append([shape, i, j])
+          batch_xs.append(img)
+      z_mean, _ = model.transform(sess, batch_xs)
+      b.extend(z_mean)
 
   else:
     raise ValueError("Task type is not defined: " + flags.task_type)
@@ -210,7 +241,12 @@ def main(argv):
   if not os.path.isdir(my_path):
     os.makedirs(my_path)
 
-  manager = DataManager(flags.dist_type)
+  if flags.task_type == 'position':
+    dims = [32, 32]
+  if flags.task_type == 'shape_position':
+    dims = [3, 1, 1, 32, 32]
+
+  manager = DataManager(flags.dist_type, dims)
   manager.load()
 
   sess = tf.Session()

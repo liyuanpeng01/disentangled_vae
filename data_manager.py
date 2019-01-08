@@ -18,10 +18,13 @@ class Distribution(object):
       return [self.get_score(values)]
     dist = []
     r = valuables.pop()
-    values.append(0)
-    for i in xrange(r):
-      values[-1] = (2. * i) / (r - 1.) - 1
+    values.append(1)
+    if r == 1:
       dist.extend(self.get_scores(valuables, values))
+    else:
+      for i in xrange(r):
+        values[-1] = (2. * i) / (r - 1.) - 1
+        dist.extend(self.get_scores(valuables, values))
     values.pop()
     valuables.append(r)
     return dist
@@ -47,7 +50,7 @@ class GaussianDistribution(Distribution):
     return score
 
 class DataManager(object):
-  def __init__(self, dist_type=None):
+  def __init__(self, dist_type=None, dims=[32, 32]):
     n = 32.
     ni = int(n)
     if dist_type is None:
@@ -60,10 +63,10 @@ class DataManager(object):
         self.dist[i] /= s
     elif dist_type == 'linear':
       dist = LinearDistribution()
-      self.dist = dist.get_distribution([ni, ni])
+      self.dist = dist.get_distribution(dims)
     elif dist_type == 'gaussian':
       dist = GaussianDistribution()
-      self.dist = dist.get_distribution([ni, ni])
+      self.dist = dist.get_distribution(dims)
     else:
       with open(dist_type, 'r') as f:
         self.dist = [float(x) for x in f.readlines()]

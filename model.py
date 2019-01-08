@@ -359,22 +359,35 @@ class STAE(VAE):
     if inverse:
       phi = -phi
       s = 1. / s
-      tx = - tx
+      tx = -tx
       ty = -ty
 
-    R = self._get_rotation_matrix(phi)
-    S = self._get_scaling_matrix(s)
+    #R = self._get_rotation_matrix(phi)
+    #S = self._get_scaling_matrix(s)
     T = self._get_translation_matrix(tx, ty)
-    order = [T, S, R]
+    #order = [T, S, R]
+    order = [T]
 
     if inverse:
       order.reverse()
 
-    m = tf.matmul(order[1], order[2])
-    m = tf.matmul(order[0], m)
+    m = order[0]
+    for x in order[1:]:
+      m = tf.matmul(m, x)
+    #m = tf.matmul(order[1], order[2])
+    #m = tf.matmul(order[0], m)
     m = tf.split(m, [2, 1], axis=1)
     m = tf.reshape(m[0], [-1, 6])
     return m
+
+  def ff_network(self, x, n_layers, hidden_size, out_size):
+    for i in range(n_layers):
+      if i == n_layers - 1:
+        activation = None
+      else:
+        activation = tf.nn.relu
+      x = tf.layers.dense(x, out_size, activation=activation)
+    return x
 
   def _create_network(self):
     # tf Graph input
@@ -388,23 +401,27 @@ class STAE(VAE):
 
     x_tensor = tf.reshape(self.x, [-1, 64, 64, 1])
     out_size = (64, 64)
-    c = transformer(x_tensor, A, out_size)
-    c_flat = tf.reshape(c, [-1, 64 * 64])
+    #c = transformer(x_tensor, A, out_size)
+    c = x_tensor
 
-    h = tf.layers.dense(c_flat, 6, name="encoder")
+    with tf.variable_scope("encoder"):
+      c_flat = tf.reshape(c, [-1, 64 * 64])
+      h = self.ff_network(c_flat, 1, 16, 6)
 
     self.z = tf.concat([theta, h], axis=1, name='z')
 
     theta2, h2 = tf.split(self.z, [4, 6], axis=1)
     # h2 = tf.nn.dropout(h2, 0.2)
 
-    c_hat_flat = tf.layers.dense(h2, 64 * 64, name="decoder")
-    c_hat = tf.reshape(c_hat_flat, [-1, 64, 64, 1])
+    with tf.variable_scope("decoder"):
+      c_hat_flat = self.ff_network(h2, 1, 16, 64 * 64)
+      c_hat = tf.reshape(c_hat_flat, [-1, 64, 64, 1])
 
     with tf.variable_scope("output_transform_matrix"):
       A_inv = self._get_matrix(theta2, inverse=True)
-    c_hat = tf.nn.sigmoid(c_hat, name="sigmoid_c_hat")
-    x_hat = transformer(c_hat, A_inv, out_size)
+    #c_hat = tf.nn.sigmoid(c_hat, name="sigmoid_c_hat")
+    #x_hat = transformer(c_hat, A_inv, out_size)
+    x_hat = c_hat
 
     self.x_out_logit = tf.reshape(x_hat, [-1, 64 * 64], name="x_out_logit")
     self.x_out = self.x_out_logit
@@ -418,7 +435,8 @@ class STAE(VAE):
     #reconstr_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=self.x,
     #                                                        logits=self.x_out_logit)
     # reconstr_loss = tf.reduce_sum(reconstr_loss, 1)
-    reconstr_loss = tf.losses.sigmoid_cross_entropy(self.x, self.x_out_logit)
+    #reconstr_loss = tf.losses.sigmoid_cross_entropy(self.x, self.x_out_logit)
+    reconstr_loss = tf.nn.l2_loss(self.x - self.x_out_logit)
 
     self.reconstr_loss = tf.reduce_mean(reconstr_loss)
 
