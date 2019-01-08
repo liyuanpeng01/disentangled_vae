@@ -401,8 +401,7 @@ class STAE(VAE):
 
     x_tensor = tf.reshape(self.x, [-1, 64, 64, 1])
     out_size = (64, 64)
-    #c = transformer(x_tensor, A, out_size)
-    c = x_tensor
+    c = transformer(x_tensor, A, out_size)
 
     with tf.variable_scope("encoder"):
       c_flat = tf.reshape(c, [-1, 64 * 64])
@@ -420,8 +419,7 @@ class STAE(VAE):
     with tf.variable_scope("output_transform_matrix"):
       A_inv = self._get_matrix(theta2, inverse=True)
     #c_hat = tf.nn.sigmoid(c_hat, name="sigmoid_c_hat")
-    #x_hat = transformer(c_hat, A_inv, out_size)
-    x_hat = c_hat
+    x_hat = transformer(c_hat, A_inv, out_size)
 
     self.x_out_logit = tf.reshape(x_hat, [-1, 64 * 64], name="x_out_logit")
     self.x_out = self.x_out_logit

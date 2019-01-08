@@ -68,8 +68,6 @@ def train(sess,
       shape = index // (32 * 32)
       x = (index // 32) % 32
       y = index % 32
-      x = 0
-      y = 0
       latents = [0, shape, 0, 0, x, y]
       a.append(np.dot(latents, manager.latents_bases).astype(int))
     indices = a
