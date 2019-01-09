@@ -400,8 +400,8 @@ class STAE(VAE):
       A = self._get_matrix(theta)
 
     x_tensor = tf.reshape(self.x, [-1, 64, 64, 1])
-    csize = 16
-    hsize = 64
+    csize = 32
+    hsize = 32
     out_size = (csize, csize)
     c = transformer(x_tensor, A, out_size)
 
@@ -417,17 +417,16 @@ class STAE(VAE):
     with tf.variable_scope("decoder"):
       c_hat_flat = self.ff_network(h2, 1, 16, hsize * hsize)
       c_hat = tf.reshape(c_hat_flat, [-1, hsize, hsize, 1])
-      #pad_size = (64 - csize) // 2
-      #paddings = [[0, 0], [pad_size, pad_size], [pad_size, pad_size], [0, 0]]
-      #c_hat = tf.pad(c_hat, paddings)
+      #c_hat = tf.nn.sigmoid(c_hat)
+      pad_size = 64 - hsize
+      paddings = [[0, 0], [0, pad_size], [0, pad_size], [0, 0]]
+      c_hat = tf.pad(c_hat, paddings)
 
     with tf.variable_scope("output_transform_matrix"):
       A_inv = self._get_matrix(theta2, inverse=True)
-    #c_hat = tf.nn.sigmoid(c_hat, name="sigmoid_c_hat")
     x_hat = transformer(c_hat, A_inv, (64, 64))
 
-    self.x_out = tf.reshape(x_hat, [-1, 64 * 64], name="x_out_logit")
-    #self.x_out = tf.nn.sigmoid(self.x_out_logit, name="x_out")
+    self.x_out = tf.reshape(x_hat, [-1, 64 * 64], name="x_out")
 
     self.z_mean = self.z
     self.z_log_sigma_sq = self.z
@@ -437,7 +436,7 @@ class STAE(VAE):
     #reconstr_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=self.x,
     #                                                        logits=self.x_out_logit)
     # reconstr_loss = tf.reduce_sum(reconstr_loss, 1)
-    #reconstr_loss = tf.losses.sigmoid_cross_entropy(self.x, self.x_out_logit)
+    #reconstr_loss = tf.losses.sigmoid_cross_entropy(self.x, self.x_out)
     reconstr_loss = tf.nn.l2_loss(self.x - self.x_out)
 
     self.reconstr_loss = tf.reduce_mean(reconstr_loss)
