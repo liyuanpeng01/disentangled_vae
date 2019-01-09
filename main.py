@@ -68,6 +68,8 @@ def train(sess,
       shape = index // (32 * 32)
       x = (index // 32) % 32
       y = index % 32
+      x = 0
+      y = 0
       latents = [0, shape, 0, 0, x, y]
       a.append(np.dot(latents, manager.latents_bases).astype(int))
     indices = a
@@ -117,6 +119,8 @@ def reconstruct_check(sess, model, images):
     reconstr_img = x_reconstruct[i].reshape(64, 64)
     imsave(my_path + "reconstr_img/org_{0}.png".format(i),      org_img)
     imsave(my_path + "reconstr_img/reconstr_{0}.png".format(i), reconstr_img)
+  print(org_img)
+  print(reconstr_img)
 
 
 def disentangle_check(sess, model, manager, save_original=False):

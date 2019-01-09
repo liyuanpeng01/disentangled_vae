@@ -14,7 +14,7 @@ python main.py \
 --checkpoint_dir=checkpoints \
 --model_type=stn \
 --learning_rate=5e-4 \
-#--short_training \
+--short_training \
 #| tee output/${ID}/stdout.log
 
 sh anim.sh output/${ID}/
