@@ -363,10 +363,10 @@ class STAE(VAE):
       ty = -ty
 
     #R = self._get_rotation_matrix(phi)
-    #S = self._get_scaling_matrix(s)
+    S = self._get_scaling_matrix(s)
     T = self._get_translation_matrix(tx, ty)
     #order = [T, S, R]
-    order = [T]
+    order = [T, S]
 
     if inverse:
       order.reverse()

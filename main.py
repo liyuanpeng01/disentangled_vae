@@ -47,8 +47,8 @@ def train(sess,
   
   n_samples = manager.sample_size
 
-  #reconstruct_check_images = manager.get_random_images(10)
-  reconstruct_check_images = []
+  reconstruct_check_images = manager.get_random_images(10)
+  #reconstruct_check_images = []
   reconstruct_check_images.append(manager.get_image(0, 0, 0, 0, 0))
   reconstruct_check_images.append(manager.get_image(1, 0, 0, 0, 0))
   reconstruct_check_images.append(manager.get_image(2, 0, 0, 0, 0))
@@ -65,10 +65,11 @@ def train(sess,
     indices = manager.get_dependent_indices(n_samples)
     a = []
     for index in indices:
-      shape = index // (32 * 32)
+      shape = index // (32 * 32 * 6)
+      scale = (index // (32 * 32)) % 6
       x = (index // 32) % 32
       y = index % 32
-      latents = [0, shape, 0, 0, x, y]
+      latents = [0, shape, scale, 0, x, y]
       a.append(np.dot(latents, manager.latents_bases).astype(int))
     indices = a
 
@@ -117,8 +118,6 @@ def reconstruct_check(sess, model, images):
     reconstr_img = x_reconstruct[i].reshape(64, 64)
     imsave(my_path + "reconstr_img/org_{0}.png".format(i),      org_img)
     imsave(my_path + "reconstr_img/reconstr_{0}.png".format(i), reconstr_img)
-  print(org_img)
-  print(reconstr_img)
 
 
 def disentangle_check(sess, model, manager, save_original=False):
@@ -203,10 +202,23 @@ def transform_check(sess, model, manager):
         for j in xrange(32):
           img = manager.get_image(
             shape=shape, scale=scale, orientation=orientation, x=i, y=j)
-          a.append([shape, i, j])
+          a.append([i, j])
           batch_xs.append(img)
       z_mean, _ = model.transform(sess, batch_xs)
       b.extend(z_mean)
+
+  elif flags.task_type == 'shape_position_scale':
+    for shape in xrange(3):
+      for scale in xrange(6):
+        batch_xs = []
+        for i in xrange(32):
+          for j in xrange(32):
+            img = manager.get_image(
+              shape=shape, scale=scale, orientation=orientation, x=i, y=j)
+            a.append([shape, scale, i, j])
+            batch_xs.append(img)
+        z_mean, _ = model.transform(sess, batch_xs)
+        b.extend(z_mean)
 
   else:
     raise ValueError("Task type is not defined: " + flags.task_type)
@@ -243,8 +255,12 @@ def main(argv):
 
   if flags.task_type == 'position':
     dims = [32, 32]
-  if flags.task_type == 'shape_position':
+  elif flags.task_type == 'shape_position':
     dims = [3, 1, 1, 32, 32]
+  elif flags.task_type == 'shape_position_scale':
+    dims = [3, 6, 1, 32, 32]
+  else:
+    raise ValueError("Task type is not defined: " + flags.task_type)
 
   manager = DataManager(flags.dist_type, dims)
   manager.load()
