@@ -327,7 +327,7 @@ class STAE(VAE):
     return theta
 
   def _get_rotation_matrix(self, phi):
-    #phi = tf.minimum(2. * math.pi, tf.maximum(0., phi))
+    phi = tf.minimum(2. * math.pi, tf.maximum(0., phi))
     zero = tf.zeros(tf.shape(phi))
     one = tf.ones(tf.shape(phi))
 
@@ -339,6 +339,7 @@ class STAE(VAE):
     return matrix
 
   def _get_scaling_matrix(self, s):
+    s = tf.maximum(0., s)
     zero = tf.zeros(tf.shape(s))
     one = tf.ones(tf.shape(s))
 
