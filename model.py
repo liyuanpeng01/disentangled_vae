@@ -362,11 +362,11 @@ class STAE(VAE):
       tx = -tx
       ty = -ty
 
-    #R = self._get_rotation_matrix(phi)
+    R = self._get_rotation_matrix(phi)
     S = self._get_scaling_matrix(s)
     T = self._get_translation_matrix(tx, ty)
-    #order = [T, S, R]
-    order = [T, S]
+    order = [T, S, R]
+    #order = [T, S]
 
     if inverse:
       order.reverse()
@@ -400,16 +400,20 @@ class STAE(VAE):
       A = self._get_matrix(theta)
 
     x_tensor = tf.reshape(self.x, [-1, 64, 64, 1])
-    csize = 32
-    hsize = 32
+    csize = 64
+    hsize = 64
     out_size = (csize, csize)
     c = transformer(x_tensor, A, out_size)
 
     with tf.variable_scope("encoder"):
       c_flat = tf.reshape(c, [-1, csize * csize])
-      h = self.ff_network(c_flat, 1, 16, 6)
+      self.ori_h = self.ff_network(c_flat, 1, 16, 6)
 
-    self.z = tf.concat([theta, h], axis=1, name='z')
+    with tf.variable_scope("compression"):
+      noise = tf.random_normal(shape=tf.shape(self.ori_h), dtype=tf.float32)
+      self.h = self.ori_h + noise
+
+    self.z = tf.concat([theta, self.h], axis=1, name='z')
 
     theta2, h2 = tf.split(self.z, [4, 6], axis=1)
     # h2 = tf.nn.dropout(h2, 0.2)
@@ -418,9 +422,9 @@ class STAE(VAE):
       c_hat_flat = self.ff_network(h2, 1, 16, hsize * hsize)
       c_hat = tf.reshape(c_hat_flat, [-1, hsize, hsize, 1])
       #c_hat = tf.nn.sigmoid(c_hat)
-      pad_size = 64 - hsize
-      paddings = [[0, 0], [0, pad_size], [0, pad_size], [0, 0]]
-      c_hat = tf.pad(c_hat, paddings)
+      #pad_size = 64 - hsize
+      #paddings = [[0, 0], [0, pad_size], [0, pad_size], [0, 0]]
+      #c_hat = tf.pad(c_hat, paddings)
 
     with tf.variable_scope("output_transform_matrix"):
       A_inv = self._get_matrix(theta2, inverse=True)
@@ -437,9 +441,12 @@ class STAE(VAE):
     #                                                        logits=self.x_out_logit)
     # reconstr_loss = tf.reduce_sum(reconstr_loss, 1)
     #reconstr_loss = tf.losses.sigmoid_cross_entropy(self.x, self.x_out)
-    reconstr_loss = tf.nn.l2_loss(self.x - self.x_out)
+    self.reconstr_loss = tf.nn.l2_loss(self.x - self.x_out)
 
-    self.reconstr_loss = tf.reduce_mean(reconstr_loss)
+    #self.reconstr_loss = tf.reduce_mean(reconstr_loss)
+
+    self.reconstr_loss += 0.01 * tf.nn.l2_loss(self.ori_h)
+
 
     # Latent loss
     # latent_loss = -0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq

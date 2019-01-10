@@ -71,7 +71,7 @@ def train(sess,
       y = index % 32
       latents = [0, shape, scale, 0, x, y]
       a.append(np.dot(latents, manager.latents_bases).astype(int))
-    indices = a
+    #indices = a
 
     avg_cost = 0.0
     if flags.short_training:
@@ -184,13 +184,14 @@ def transform_check(sess, model, manager):
   elif flags.task_type == 'onecolor':
     for shape in xrange(3):
       for scale in xrange(6):
-        for orientation in xrange(40):
+        for orientation in xrange(5):
+          orientation *= 8
           batch_xs = []
           for i in xrange(32):
             for j in xrange(32):
               img = manager.get_image(
                 shape=shape, scale=scale, orientation=orientation, x=i, y=j)
-              a.append([shape, scale, orientation, i, j])
+              a.append([scale, orientation, i, j])
               batch_xs.append(img)
           z_mean, _ = model.transform(sess, batch_xs)
           b.extend(z_mean)
@@ -215,7 +216,7 @@ def transform_check(sess, model, manager):
           for j in xrange(32):
             img = manager.get_image(
               shape=shape, scale=scale, orientation=orientation, x=i, y=j)
-            a.append([shape, scale, i, j])
+            a.append([scale, i, j])
             batch_xs.append(img)
         z_mean, _ = model.transform(sess, batch_xs)
         b.extend(z_mean)
@@ -259,6 +260,8 @@ def main(argv):
     dims = [3, 1, 1, 32, 32]
   elif flags.task_type == 'shape_position_scale':
     dims = [3, 6, 1, 32, 32]
+  elif flags.task_type == 'onecolor':
+    dims = [3, 6, 40, 32, 32]
   else:
     raise ValueError("Task type is not defined: " + flags.task_type)
 
