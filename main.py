@@ -184,11 +184,12 @@ def transform_check(sess, model, manager):
   elif flags.task_type == 'onecolor':
     for shape in xrange(3):
       for scale in xrange(6):
-        for orientation in xrange(5):
-          orientation *= 8
+        for orientation in xrange(40):
           batch_xs = []
-          for i in xrange(32):
-            for j in xrange(32):
+          for i in xrange(8):
+            i *= 4
+            for j in xrange(8):
+              j *= 4
               img = manager.get_image(
                 shape=shape, scale=scale, orientation=orientation, x=i, y=j)
               a.append([scale, orientation, i, j])

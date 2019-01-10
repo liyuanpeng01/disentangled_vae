@@ -327,28 +327,29 @@ class STAE(VAE):
     return theta
 
   def _get_rotation_matrix(self, phi):
+    #phi = tf.minimum(2. * math.pi, tf.maximum(0., phi))
+    zero = tf.zeros(tf.shape(phi))
+    one = tf.ones(tf.shape(phi))
+
     cos = tf.cos(phi)
     sin = tf.sin(phi)
-
-    zero = 0. * phi
-    one = zero + 1.
-
     matrix = tf.stack([cos, -sin, zero, sin, cos, zero, zero, zero, one],
                       axis=1)
     matrix = tf.reshape(matrix, [-1, 3, 3])
     return matrix
 
   def _get_scaling_matrix(self, s):
-    zero = 0. * s
-    one = zero + 1.
+    zero = tf.zeros(tf.shape(s))
+    one = tf.ones(tf.shape(s))
 
     matrix = tf.stack([s, zero, zero, zero, s, zero, zero, zero, one], axis=1)
     matrix = tf.reshape(matrix, [-1, 3, 3])
     return matrix
 
   def _get_translation_matrix(self, tx, ty):
-    zero = 0. * tx
-    one = zero + 1.
+    zero = tf.zeros(tf.shape(tx))
+    one = tf.ones(tf.shape(tx))
+
     matrix = tf.stack([one, zero, tx, zero, one, ty, zero, zero, one], axis=1)
     matrix = tf.reshape(matrix, [-1, 3, 3])
     return matrix
@@ -366,7 +367,6 @@ class STAE(VAE):
     S = self._get_scaling_matrix(s)
     T = self._get_translation_matrix(tx, ty)
     order = [T, S, R]
-    #order = [T, S]
 
     if inverse:
       order.reverse()
@@ -374,8 +374,6 @@ class STAE(VAE):
     m = order[0]
     for x in order[1:]:
       m = tf.matmul(m, x)
-    #m = tf.matmul(order[1], order[2])
-    #m = tf.matmul(order[0], m)
     m = tf.split(m, [2, 1], axis=1)
     m = tf.reshape(m[0], [-1, 6])
     return m
@@ -407,7 +405,7 @@ class STAE(VAE):
 
     with tf.variable_scope("encoder"):
       c_flat = tf.reshape(c, [-1, csize * csize])
-      self.ori_h = self.ff_network(c_flat, 1, 16, 6)
+      self.ori_h = self.ff_network(c_flat, 1, 64, 6)
 
     with tf.variable_scope("compression"):
       noise = tf.random_normal(shape=tf.shape(self.ori_h), dtype=tf.float32)
@@ -419,7 +417,7 @@ class STAE(VAE):
     # h2 = tf.nn.dropout(h2, 0.2)
 
     with tf.variable_scope("decoder"):
-      c_hat_flat = self.ff_network(h2, 1, 16, hsize * hsize)
+      c_hat_flat = self.ff_network(h2, 1, 64, hsize * hsize)
       c_hat = tf.reshape(c_hat_flat, [-1, hsize, hsize, 1])
       #c_hat = tf.nn.sigmoid(c_hat)
       #pad_size = 64 - hsize
