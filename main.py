@@ -65,13 +65,14 @@ def train(sess,
     indices = manager.get_dependent_indices(n_samples)
     a = []
     for index in indices:
-      shape = index // (32 * 32 * 6)
-      scale = (index // (32 * 32)) % 6
+      shape = index // (32 * 32 * 40 * 6)
+      scale = (index // (32 * 32 * 40)) % 6
+      rotation = (index // (32 * 32)) % 40
       x = (index // 32) % 32
       y = index % 32
-      latents = [0, shape, scale, 0, x, y]
+      latents = [0, shape, scale, rotation, x, y]
       a.append(manager.get_index(latents))
-    #indices = a
+    indices = a
 
     avg_cost = 0.0
     if flags.short_training:
