@@ -327,7 +327,7 @@ class STAE(VAE):
     return theta
 
   def _get_rotation_matrix(self, phi):
-    phi = tf.minimum(2. * math.pi, tf.maximum(0., phi))
+    #phi = tf.minimum(2. * math.pi, tf.maximum(0., phi))
     zero = tf.zeros(tf.shape(phi))
     one = tf.ones(tf.shape(phi))
 
@@ -410,12 +410,11 @@ class STAE(VAE):
 
     with tf.variable_scope("compression"):
       noise = tf.random_normal(shape=tf.shape(self.ori_h), dtype=tf.float32)
-      self.h = self.ori_h + noise
+      self.h = self.ori_h + 0 * noise
 
     self.z = tf.concat([theta, self.h], axis=1, name='z')
 
     theta2, h2 = tf.split(self.z, [4, 6], axis=1)
-    # h2 = tf.nn.dropout(h2, 0.2)
 
     with tf.variable_scope("decoder"):
       c_hat_flat = self.ff_network(h2, 1, 64, hsize * hsize)
@@ -444,7 +443,7 @@ class STAE(VAE):
 
     #self.reconstr_loss = tf.reduce_mean(reconstr_loss)
 
-    self.reconstr_loss += 0.01 * tf.nn.l2_loss(self.ori_h)
+    #self.reconstr_loss += 0.01 * tf.nn.l2_loss(self.ori_h)
 
 
     # Latent loss

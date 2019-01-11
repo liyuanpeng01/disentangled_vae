@@ -37,6 +37,9 @@ flags = tf.app.flags.FLAGS
 
 my_path = "output/" + flags.expriment_name + "/"
 
+ss = 2
+xx = 30
+yy = 2
 
 def train(sess,
           model,
@@ -49,14 +52,14 @@ def train(sess,
 
   #reconstruct_check_images = manager.get_random_images(10)
   reconstruct_check_images = []
-  reconstruct_check_images.append(manager.get_image(2, 2, 0, 0, 0))
-  reconstruct_check_images.append(manager.get_image(2, 2, 5, 0, 0))
-  reconstruct_check_images.append(manager.get_image(2, 2, 10, 0, 0))
-  reconstruct_check_images.append(manager.get_image(2, 2, 15, 0, 0))
-  reconstruct_check_images.append(manager.get_image(2, 2, 20, 0, 0))
-  reconstruct_check_images.append(manager.get_image(2, 2, 25, 0, 0))
-  reconstruct_check_images.append(manager.get_image(2, 2, 30, 0, 0))
-  reconstruct_check_images.append(manager.get_image(2, 2, 35, 0, 0))
+  reconstruct_check_images.append(manager.get_image(ss, 2, 0, xx, yy))
+  reconstruct_check_images.append(manager.get_image(ss, 2, 5, xx, yy))
+  reconstruct_check_images.append(manager.get_image(ss, 2, 10, xx, yy))
+  reconstruct_check_images.append(manager.get_image(ss, 2, 15, xx, yy))
+  reconstruct_check_images.append(manager.get_image(ss, 2, 20, xx, yy))
+  reconstruct_check_images.append(manager.get_image(ss, 2, 25, xx, yy))
+  reconstruct_check_images.append(manager.get_image(ss, 2, 30, xx, yy))
+  reconstruct_check_images.append(manager.get_image(ss, 2, 35, xx, yy))
 
   #indices = list(range(n_samples))
 
@@ -76,13 +79,13 @@ def train(sess,
       x = (index // 32) % 32
       y = index % 32
       #latents = [0, shape, scale, rotation, x, y]
-      latents = [0, 2, 2, rotation, x, y]
+      latents = [0, ss, 2, rotation, x, y]
       a.append(manager.get_index(latents))
     indices = a
 
     avg_cost = 0.0
     if flags.short_training:
-      total_batch = 4000
+      total_batch = 2000
     else:
       total_batch = n_samples // flags.batch_size
 
@@ -93,7 +96,7 @@ def train(sess,
       batch_xs = manager.get_images(batch_indices)
       # Fit training using batch data
       reconstr_loss, latent_loss, summary_str = model.partial_fit(sess, batch_xs, step)
-      #print(i, reconstr_loss)
+      print(i, reconstr_loss)
       summary_writer.add_summary(summary_str, step)
       step += 1
     print('reconstructin loss: ', reconstr_loss)
@@ -128,7 +131,7 @@ def reconstruct_check(sess, model, images):
 
 
 def disentangle_check(sess, model, manager, save_original=False):
-  img = manager.get_image(shape=0, scale=2, orientation=5)
+  img = manager.get_image(shape=ss, scale=2, orientation=0, x=xx, y=yy)
   if save_original:
     imsave(my_path + "original.png", img.reshape(64, 64).astype(np.float32))
     
@@ -164,6 +167,8 @@ def disentangle_check(sess, model, manager, save_original=False):
       for i in range(n_z):
         if( i == target_z_index ):
           z_mean2[0][i] = value
+          if target_z_index == 0:
+            z_mean2[0][i] *= 4
         else:
           z_mean2[0][i] = z_m[i]
       reconstr_img = model.generate(sess, z_mean2)
