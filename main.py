@@ -47,11 +47,16 @@ def train(sess,
   
   n_samples = manager.sample_size
 
-  reconstruct_check_images = manager.get_random_images(10)
-  #reconstruct_check_images = []
-  reconstruct_check_images.append(manager.get_image(0, 0, 0, 0, 0))
-  reconstruct_check_images.append(manager.get_image(1, 0, 0, 0, 0))
-  reconstruct_check_images.append(manager.get_image(2, 0, 0, 0, 0))
+  #reconstruct_check_images = manager.get_random_images(10)
+  reconstruct_check_images = []
+  reconstruct_check_images.append(manager.get_image(2, 2, 0, 0, 0))
+  reconstruct_check_images.append(manager.get_image(2, 2, 5, 0, 0))
+  reconstruct_check_images.append(manager.get_image(2, 2, 10, 0, 0))
+  reconstruct_check_images.append(manager.get_image(2, 2, 15, 0, 0))
+  reconstruct_check_images.append(manager.get_image(2, 2, 20, 0, 0))
+  reconstruct_check_images.append(manager.get_image(2, 2, 25, 0, 0))
+  reconstruct_check_images.append(manager.get_image(2, 2, 30, 0, 0))
+  reconstruct_check_images.append(manager.get_image(2, 2, 35, 0, 0))
 
   #indices = list(range(n_samples))
 
@@ -70,7 +75,8 @@ def train(sess,
       rotation = (index // (32 * 32)) % 40
       x = (index // 32) % 32
       y = index % 32
-      latents = [0, shape, scale, rotation, x, y]
+      #latents = [0, shape, scale, rotation, x, y]
+      latents = [0, 2, 2, rotation, x, y]
       a.append(manager.get_index(latents))
     indices = a
 
