@@ -70,7 +70,7 @@ def train(sess,
       x = (index // 32) % 32
       y = index % 32
       latents = [0, shape, scale, 0, x, y]
-      a.append(np.dot(latents, manager.latents_bases).astype(int))
+      a.append(manager.get_index(latents))
     #indices = a
 
     avg_cost = 0.0
