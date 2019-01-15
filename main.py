@@ -83,20 +83,24 @@ def train(sess,
       a.append(manager.get_index(latents))
     indices = a
 
-    avg_cost = 0.0
     if flags.short_training:
       total_batch = 2000
     else:
       total_batch = n_samples // flags.batch_size
 
     # Loop over all batches
+    avg_cost = 0.0
     for i in range(total_batch):
       # Generate image batch
       batch_indices = indices[flags.batch_size*i : flags.batch_size*(i+1)]
       batch_xs = manager.get_images(batch_indices)
       # Fit training using batch data
       reconstr_loss, latent_loss, summary_str = model.partial_fit(sess, batch_xs, step)
-      print(i, reconstr_loss)
+      avg_cost += reconstr_loss
+      if i % 50 == 0:
+        print(i, avg_cost / 50.)
+        avg_cost = 0
+
       summary_writer.add_summary(summary_str, step)
       step += 1
     print('reconstructin loss: ', reconstr_loss)
