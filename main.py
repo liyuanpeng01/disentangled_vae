@@ -241,9 +241,10 @@ def transform_check(sess, model, manager):
   else:
     raise ValueError("Task type is not defined: " + flags.task_type)
 
-  with open(my_path + 'align.log', 'w') as f:
-    for x, y in zip(a, b):
-      f.write(str(x[1]) + '\t' + str(y[1]) + '\n')
+  for j in range(4):
+    with open(my_path + 'align_' + str(j) + '.log', 'w') as f:
+      for x, y in zip(a, b):
+        f.write(str(x[j]) + '\t' + str(y[j]) + '\n')
 
   a = np.transpose(a)
   b = np.transpose(b)
