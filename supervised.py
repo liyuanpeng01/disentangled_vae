@@ -14,6 +14,7 @@ from model import BetaVAE
 from model import STAE
 from data_manager import DataManager
 from evaluation import get_ave_recall
+from spatial_transformer import transformer
 from tf_utils import weight_variable, bias_variable
 
 tf.app.flags.DEFINE_integer("epoch_size", 2000, "epoch size")
@@ -44,11 +45,29 @@ ss = 2
 xx = 30
 yy = 2
 
+def print_image(manager, index):
+  images = manager.get_images([index])
+  rimg = np.asarray(images[0]).reshape(64, 64)
+  imshow(rimg*255)
+
+def test_borders(manager):
+  idx1 = manager.get_index([0, 2, 2, 39, 0, 0])
+  idx2 = manager.get_index([0, 2, 2, 0, 0, 0])
+
+  images = manager.get_images([idx1, idx2])
+  assert len(images[0]) == len(images[1])
+  for a, b in zip(images[0], images[1]):
+    assert a == b
+
+  print_image(manager, idx1)
+  print_image(manager, idx2)
+  exit()
+
 def train(sess,
           model,
           manager,
           saver):
-
+  #test_borders(manager)
   summary_writer = tf.summary.FileWriter(flags.log_file, sess.graph)
   
   n_samples = manager.sample_size
@@ -63,6 +82,7 @@ def train(sess,
     # Shuffle image indices
     random.shuffle(indices)
     #indices = manager.get_dependent_indices(n_samples)
+
     a = []
     rotation_list = []
     for index in indices:
@@ -71,9 +91,11 @@ def train(sess,
       rotation = (index // (32 * 32)) % 40
       x = (index // 32) % 32
       y = index % 32
-      x = 0
-      y = 0
+      y = 16
       #latents = [0, shape, scale, rotation, x, y]
+      #margin = 1
+      #rotation = margin*(rotation // margin)
+      rotation = rotation % 39
       latents = [0, ss, 2, rotation, x, y]
       a.append(manager.get_index(latents))
       rotation_list.append(rotation)
@@ -138,15 +160,15 @@ class RegressionModel(STAE):
       # %% We'll setup the two-layer localisation network to figure out the
       # %% parameters for an affine transformation of the input
       # %% Create variables for fully connected layer
-      W_fc_loc1 = weight_variable([64 * 64, 20])
-      b_fc_loc1 = bias_variable([20])
+      W_fc_loc1 = weight_variable([64 * 64, 64])
+      b_fc_loc1 = bias_variable([64])
 
-      W_fc_loc2 = weight_variable([20, 1])
+      W_fc_loc2 = weight_variable([64, 40])
       # Use identity transformation as starting point
       initial = np.array([0.])
       initial = initial.astype('float32')
       initial = initial.flatten()
-      b_fc_loc2 = tf.Variable(initial_value=initial, name='b_fc_loc2')
+      b_fc_loc2 = bias_variable([40])
 
       # %% Define the two layer localisation network
       h_fc_loc1 = tf.nn.tanh(tf.matmul(x, W_fc_loc1) + b_fc_loc1)
@@ -155,14 +177,54 @@ class RegressionModel(STAE):
       h_fc_loc1_drop = h_fc_loc1
       # h_fc_loc1_drop = tf.nn.dropout(h_fc_loc1, keep_prob)
       # %% Second layer
-      h_fc_loc2 = tf.nn.tanh(tf.matmul(h_fc_loc1_drop, W_fc_loc2) + b_fc_loc2)
+      h_fc_loc2 = tf.nn.relu(tf.matmul(h_fc_loc1_drop, W_fc_loc2) + b_fc_loc2)
       # theta = tf.split(h_fc_loc2, 4, axis=1)
       theta = h_fc_loc2
     return theta
 
-  def _create_localization_network(self, x):
-    x = tf.layers.dense(x, 20, activation=tf.nn.relu)
+  def _create_localization_network3(self, x):
+    x = tf.layers.dense(x, 64, activation=tf.nn.tanh)
     x = tf.layers.dense(x, 40, activation=None)
+    return x
+
+  def _create_localization_network4(self, x):
+    channel = 64
+    kernel = 16
+    x = tf.reshape(x, [-1, 64, 64, 1])
+    x = tf.layers.conv2d(x, channel, [kernel, kernel], strides=(1, 1), activation=tf.nn.relu)
+    _, height, width, _ = x.shape
+    x = tf.nn.max_pool(x, [1, height, width, 1], [1, height, width, 1], "VALID")
+    x = tf.reshape(x, [-1, channel])
+    x = tf.layers.dense(x, 40, activation=None)
+    return x
+
+  def _get_translation_matrix(self, tx, ty):
+    zero = tf.zeros(tf.shape(tx))
+    one = tf.ones(tf.shape(tx))
+
+    matrix = tf.stack([one, zero, tx, zero, one, ty], axis=1)
+    #matrix = tf.reshape(matrix, [-1, 2, 3])
+    return matrix
+
+  def _create_localization_network(self, x):
+    local = tf.layers.dense(x, 64, activation=tf.nn.relu)
+    local = tf.layers.dense(local, 2, activation=None)
+    tx, ty = tf.split(local, 2, axis=1)
+    x = tf.reshape(x, [-1, 64, 64, 1])
+    x = transformer(x, self._get_translation_matrix(tx, ty), (64, 64))
+    x = tf.reshape(x, [-1, 64 * 64])
+    x = tf.layers.dense(x, 64, activation=tf.nn.relu)
+    x = tf.layers.dense(x, 40, activation=None)
+    return x
+
+  def _create_localization_network6(self, x):
+    local = tf.layers.dense(x, 64, activation=tf.nn.relu)
+    local = tf.layers.dense(local, 2, activation=None)
+    tx, ty = tf.split(local, 2, axis=1)
+    x = tf.reshape(x, [-1, 64, 64, 1])
+    x = transformer(x, self._get_translation_matrix(tx, ty), (64, 64))
+    x = tf.reshape(x, [-1, 64 * 64])
+    x = self._create_localization_network4(x)
     return x
 
   def _create_network(self):
