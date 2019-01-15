@@ -31,11 +31,13 @@ class VAE(object):
                gamma=100.0,
                capacity_limit=25.0,
                capacity_change_duration=100000,
-               learning_rate=5e-4):
+               learning_rate=5e-4,
+               flags=None):
     self.gamma = gamma
     self.capacity_limit = capacity_limit
     self.capacity_change_duration = capacity_change_duration
     self.learning_rate = learning_rate
+    self.flags=flags
     
     # Create autoencoder network
     self._create_network()
@@ -424,8 +426,10 @@ class STAE(VAE):
       self.ori_h = self.ff_network(c_flat, 1, 64, 6)
 
     with tf.variable_scope("compression"):
-      noise = tf.random_normal(shape=tf.shape(self.ori_h), dtype=tf.float32)
-      self.h = self.ori_h + noise
+      self.h = self.ori_h
+      if self.flags.rep_regularize:
+        noise = tf.random_normal(shape=tf.shape(self.h), dtype=tf.float32)
+        self.h += noise
 
     self.z = tf.concat([theta, self.h], axis=1, name='z')
     self.z_mean_original = tf.concat([theta, self.ori_h], axis=1, name='z_ori')
@@ -435,9 +439,11 @@ class STAE(VAE):
     with tf.variable_scope("decoder"):
       c_hat_flat = self.ff_network(h2, 1, 64, hsize * hsize)
       c_hat = tf.reshape(c_hat_flat, [-1, hsize, hsize, 1])
-      #c_hat = tf.nn.sigmoid(c_hat)
-      c_hat = tf.maximum(0., c_hat)
-      c_hat = tf.minimum(1., c_hat)
+      if self.flags.sigmoid_output:
+        c_hat = tf.nn.sigmoid(c_hat)
+      #else:
+        #c_hat = tf.maximum(0., c_hat)
+        #c_hat = tf.minimum(1., c_hat)
       #pad_size = 64 - hsize
       #paddings = [[0, 0], [0, pad_size], [0, pad_size], [0, 0]]
       #c_hat = tf.pad(c_hat, paddings)
@@ -445,6 +451,10 @@ class STAE(VAE):
     with tf.variable_scope("output_transform_matrix"):
       A_inv = self._get_matrix(theta2, inverse=True)
     x_hat = transformer(c_hat, A_inv, (64, 64))
+
+    if not self.flags.sigmoid_output:
+      x_hat = tf.maximum(0., x_hat)
+      x_hat = tf.minimum(1., x_hat)
 
     self.x_out = tf.reshape(x_hat, [-1, 64 * 64], name="x_out")
 
@@ -461,7 +471,8 @@ class STAE(VAE):
 
     #self.reconstr_loss = tf.reduce_mean(reconstr_loss)
 
-    #self.reconstr_loss += 0.01 * tf.nn.l2_loss(self.ori_h)
+    if self.flags.rep_regularize:
+      self.reconstr_loss += 0.01 * tf.nn.l2_loss(self.ori_h)
 
 
     # Latent loss

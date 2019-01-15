@@ -32,6 +32,8 @@ tf.app.flags.DEFINE_string("dist_type", 'linear', "distribution type")
 tf.app.flags.DEFINE_string("expriment_name", "default", "experiment name")
 tf.app.flags.DEFINE_boolean("training", True, "training or not")
 tf.app.flags.DEFINE_boolean("short_training", False, "training or not")
+tf.app.flags.DEFINE_boolean("rep_regularize", False, "regularize representation")
+tf.app.flags.DEFINE_boolean("sigmoid_output", False, "use sigmoid output")
 
 flags = tf.app.flags.FLAGS
 
@@ -314,7 +316,7 @@ def main(argv):
     model = STAE(gamma=flags.gamma,
                 capacity_limit=flags.capacity_limit,
                 capacity_change_duration=flags.capacity_change_duration,
-                learning_rate=flags.learning_rate)
+                learning_rate=flags.learning_rate, flags=flags)
   else:
     raise ValueError("Model type is not defined: " + flags.model_type)
   print("Model type is " + flags.model_type)
