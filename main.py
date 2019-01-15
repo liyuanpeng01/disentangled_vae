@@ -52,6 +52,8 @@ def train(sess,
 
   #reconstruct_check_images = manager.get_random_images(10)
   reconstruct_check_images = []
+  reconstruct_check_images.append(manager.get_image(0, 2, 0, xx, yy))
+  reconstruct_check_images.append(manager.get_image(1, 2, 0, xx, yy))
   reconstruct_check_images.append(manager.get_image(ss, 2, 0, xx, yy))
   reconstruct_check_images.append(manager.get_image(ss, 2, 5, xx, yy))
   reconstruct_check_images.append(manager.get_image(ss, 2, 10, xx, yy))
@@ -60,6 +62,12 @@ def train(sess,
   reconstruct_check_images.append(manager.get_image(ss, 2, 25, xx, yy))
   reconstruct_check_images.append(manager.get_image(ss, 2, 30, xx, yy))
   reconstruct_check_images.append(manager.get_image(ss, 2, 35, xx, yy))
+  reconstruct_check_images.append(manager.get_image(0, 0, 0, xx, yy))
+  reconstruct_check_images.append(manager.get_image(0, 1, 0, xx, yy))
+  reconstruct_check_images.append(manager.get_image(0, 2, 0, xx, yy))
+  reconstruct_check_images.append(manager.get_image(0, 3, 0, xx, yy))
+  reconstruct_check_images.append(manager.get_image(0, 4, 0, xx, yy))
+  reconstruct_check_images.append(manager.get_image(0, 5, 0, xx, yy))
 
   #indices = list(range(n_samples))
 
@@ -81,7 +89,7 @@ def train(sess,
       #latents = [0, shape, scale, rotation, x, y]
       latents = [0, ss, 2, rotation, x, y]
       a.append(manager.get_index(latents))
-    indices = a
+    #indices = a
 
     if flags.short_training:
       total_batch = 2000
@@ -97,13 +105,13 @@ def train(sess,
       # Fit training using batch data
       reconstr_loss, latent_loss, summary_str = model.partial_fit(sess, batch_xs, step)
       avg_cost += reconstr_loss
-      if i % 50 == 0:
-        print(i, avg_cost / 50.)
+      if i % 100 == 0:
+        print(i, avg_cost / 100.)
         avg_cost = 0
 
       summary_writer.add_summary(summary_str, step)
       step += 1
-    print('reconstructin loss: ', reconstr_loss)
+    print('reconstruction loss: ', reconstr_loss)
 
     # Image reconstruction check
     reconstruct_check(sess, model, reconstruct_check_images)

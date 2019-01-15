@@ -290,8 +290,22 @@ class BetaVAE(VAE):
 class STAE(VAE):
   """ Beta Variational Auto Encoder. """
 
+  def _create_localization_network_new(self, x, reuse=False):
+    last_hedden = 64
+    x = tf.layers.dense(x, last_hedden, activation=tf.nn.sigmoid)
+
+    W_fc_loc2 = weight_variable([last_hedden, 4])
+    initial = np.array([0., 1., 0., 0.])
+    initial = initial.astype('float32')
+    initial = initial.flatten()
+    b_fc_loc2 = tf.Variable(initial_value=initial, name='b_fc_loc2')
+    x = tf.matmul(x, W_fc_loc2) + b_fc_loc2
+
+    #x = tf.layers.dense(x, 4)
+    return x
 
   def _create_localization_network(self, x, reuse=False):
+    hidden_size = 128
     with tf.variable_scope("localization", reuse=reuse) as scope:
       # %% Since x is currently [batch, height*width], we need to reshape to a
       # 4-D tensor to use it in a convolutional graph.  If one component of
@@ -304,10 +318,10 @@ class STAE(VAE):
       # %% We'll setup the two-layer localisation network to figure out the
       # %% parameters for an affine transformation of the input
       # %% Create variables for fully connected layer
-      W_fc_loc1 = weight_variable([64 * 64, 20])
-      b_fc_loc1 = bias_variable([20])
+      W_fc_loc1 = weight_variable([64 * 64, hidden_size])
+      b_fc_loc1 = bias_variable([hidden_size])
 
-      W_fc_loc2 = weight_variable([20, 4])
+      W_fc_loc2 = weight_variable([hidden_size, 4])
       # Use identity transformation as starting point
       initial = np.array([0., 1., 0., 0.])
       initial = initial.astype('float32')
@@ -321,13 +335,14 @@ class STAE(VAE):
       h_fc_loc1_drop = h_fc_loc1
       # h_fc_loc1_drop = tf.nn.dropout(h_fc_loc1, keep_prob)
       # %% Second layer
-      h_fc_loc2 = tf.nn.tanh(tf.matmul(h_fc_loc1_drop, W_fc_loc2) + b_fc_loc2)
+      #h_fc_loc2 = tf.nn.tanh(tf.matmul(h_fc_loc1_drop, W_fc_loc2) + b_fc_loc2)
+      h_fc_loc2 = tf.matmul(h_fc_loc1_drop, W_fc_loc2) + b_fc_loc2
       # theta = tf.split(h_fc_loc2, 4, axis=1)
       theta = h_fc_loc2
     return theta
 
   def _get_rotation_matrix(self, phi):
-    #phi = tf.minimum(2. * math.pi, tf.maximum(0., phi))
+    phi = tf.minimum(2. * math.pi, tf.maximum(0., phi))
     zero = tf.zeros(tf.shape(phi))
     one = tf.ones(tf.shape(phi))
 
@@ -410,9 +425,10 @@ class STAE(VAE):
 
     with tf.variable_scope("compression"):
       noise = tf.random_normal(shape=tf.shape(self.ori_h), dtype=tf.float32)
-      self.h = self.ori_h + 0 * noise
+      self.h = self.ori_h + noise
 
     self.z = tf.concat([theta, self.h], axis=1, name='z')
+    self.z_mean_original = tf.concat([theta, self.ori_h], axis=1, name='z_ori')
 
     theta2, h2 = tf.split(self.z, [4, 6], axis=1)
 
@@ -420,6 +436,8 @@ class STAE(VAE):
       c_hat_flat = self.ff_network(h2, 1, 64, hsize * hsize)
       c_hat = tf.reshape(c_hat_flat, [-1, hsize, hsize, 1])
       #c_hat = tf.nn.sigmoid(c_hat)
+      c_hat = tf.maximum(0., c_hat)
+      c_hat = tf.minimum(1., c_hat)
       #pad_size = 64 - hsize
       #paddings = [[0, 0], [0, pad_size], [0, pad_size], [0, 0]]
       #c_hat = tf.pad(c_hat, paddings)
@@ -438,7 +456,7 @@ class STAE(VAE):
     #reconstr_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=self.x,
     #                                                        logits=self.x_out_logit)
     # reconstr_loss = tf.reduce_sum(reconstr_loss, 1)
-    #reconstr_loss = tf.losses.sigmoid_cross_entropy(self.x, self.x_out)
+    #self.reconstr_loss = tf.reduce_mean(tf.losses.sigmoid_cross_entropy(self.x, self.x_out))
     self.reconstr_loss = tf.nn.l2_loss(self.x - self.x_out)
 
     #self.reconstr_loss = tf.reduce_mean(reconstr_loss)
@@ -468,3 +486,8 @@ class STAE(VAE):
 
     self.optimizer = tf.train.AdamOptimizer(
       learning_rate=self.learning_rate).minimize(self.loss)
+
+  def transform(self, sess, xs):
+    """Transform data by mapping it into the latent space."""
+    return sess.run([self.z_mean_original, self.z_mean_original],
+                    feed_dict={self.x: xs})
