@@ -49,6 +49,36 @@ class GaussianDistribution(Distribution):
     score = math.exp(-score)
     return score
 
+class CustomizedDistribution3(Distribution):
+  def get_score(self, x):
+    th = sum([abs(a) for a in x])
+    if th >= 1.5:
+      score = 0
+    else:
+      score = 1
+    return score
+
+class CustomizedDistribution(Distribution):
+  def get_score(self, x):
+    if sum(x) <= 0:
+      score = 0
+    else:
+      score = 1
+    return score
+
+class CustomizedDistribution2(Distribution):
+  def get_score(self, x):
+    a = x[-2]
+    b = x[-1]
+    if abs(a) + abs(b) >= 1:
+      score = 0
+    else:
+      score = 1
+      for xi in x:
+        score *= xi
+      score = 1 - score
+    return score
+
 class DataManager(object):
   def __init__(self, dist_type=None, dims=[32, 32]):
     n = 32.
@@ -66,6 +96,9 @@ class DataManager(object):
       self.dist = dist.get_distribution(dims)
     elif dist_type == 'gaussian':
       dist = GaussianDistribution()
+      self.dist = dist.get_distribution(dims)
+    elif dist_type == 'customize':
+      dist = CustomizedDistribution()
       self.dist = dist.get_distribution(dims)
     else:
       with open(dist_type, 'r') as f:

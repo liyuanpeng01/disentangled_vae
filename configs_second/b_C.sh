@@ -1,3 +1,5 @@
+# from A.0
+
 ID=$(basename "$0" | sed "s/.sh$//g")
 cd $(dirname $(dirname $(readlink -f $0)))
 
@@ -12,8 +14,8 @@ python main.py \
 --dist_type=customize \
 --epoch_size=1 \
 --checkpoint_dir=checkpoints \
---model_type=stn \
---learning_rate=5e-4 \
+--model_type=vae \
+--gamma=4.0 \
 | tee output/${ID}/stdout.log
 
 sh anim.sh output/${ID}/
