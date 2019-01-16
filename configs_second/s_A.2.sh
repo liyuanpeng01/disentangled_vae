@@ -6,7 +6,7 @@ mkdir -p output/${ID}
 
 PYTHONPATH=/home/yuanpeng/Work/projects/tf_models/research/transformer:$PYTHONPATH \
 CUDA_VISIBLE_DEVICES=$1 \
-python main.py \
+python -u main.py \
 --expriment_name=${ID} \
 --task_type=onecolor \
 --dist_type=customize \
