@@ -33,7 +33,9 @@ tf.app.flags.DEFINE_string("expriment_name", "default", "experiment name")
 tf.app.flags.DEFINE_boolean("training", True, "training or not")
 tf.app.flags.DEFINE_boolean("short_training", False, "training or not")
 tf.app.flags.DEFINE_boolean("rep_regularize", False, "regularize representation")
+tf.app.flags.DEFINE_boolean("rep_regularize_l1", False, "regularize representation")
 tf.app.flags.DEFINE_boolean("sigmoid_output", False, "use sigmoid output")
+tf.app.flags.DEFINE_float("alpha", 0.01, "alpha")
 
 flags = tf.app.flags.FLAGS
 
@@ -212,10 +214,8 @@ def transform_check(sess, model, manager):
       for scale in xrange(6):
         for orientation in xrange(40):
           batch_xs = []
-          for i in xrange(8):
-            i *= 4
-            for j in xrange(8):
-              j *= 4
+          for i in xrange(32):
+            for j in xrange(32):
               img = manager.get_image(
                 shape=shape, scale=scale, orientation=orientation, x=i, y=j)
               a.append([scale, orientation, i, j])

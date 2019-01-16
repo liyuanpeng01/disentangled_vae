@@ -472,7 +472,10 @@ class STAE(VAE):
     #self.reconstr_loss = tf.reduce_mean(reconstr_loss)
 
     if self.flags.rep_regularize:
-      self.reconstr_loss += 0.01 * tf.nn.l2_loss(self.ori_h)
+      self.reconstr_loss += self.flags.alpha * tf.nn.l2_loss(self.ori_h)
+
+    if self.flags.rep_regularize_l1:
+        self.reconstr_loss += self.flags.alpha * tf.reduce_sum(tf.abs(self.ori_h))
 
 
     # Latent loss
