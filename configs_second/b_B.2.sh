@@ -12,7 +12,7 @@ python -u main.py \
 --expriment_name=${ID} \
 --task_type=onecolor \
 --dist_type=customize \
---epoch_size=1 \
+--epoch_size=10 \
 --checkpoint_dir=checkpoints \
 --model_type=beta \
 --gamma=4.0 \

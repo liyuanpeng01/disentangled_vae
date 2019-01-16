@@ -51,6 +51,30 @@ class GaussianDistribution(Distribution):
 
 class CustomizedDistribution(Distribution):
   def get_score(self, x):
+    type = x[0]
+    x = x[1:]
+    score = 0
+    for i in xrange(len(x)):
+      for j in xrange(i, len(x)):
+        score += x[i] * x[j]
+    score *= (2 + type)
+    score = math.exp(-score)
+    return score
+
+class CustomizedDistribution5(Distribution):
+  def get_score(self, x):
+    type = x[0]
+    x = x[1:]
+    score = 0
+    for i in xrange(len(x)):
+      for j in xrange(i, len(x)):
+        score += x[i] * x[j]
+    score *= (type + 2)
+    score = math.exp(-score)
+    return score
+
+class CustomizedDistribution1(Distribution):
+  def get_score(self, x):
     th = sum([a * a for a in x])
     if th > 1:
       score = 0
@@ -67,7 +91,7 @@ class CustomizedDistribution3(Distribution):
       score = 1
     return score
 
-class CustomizedDistribution1(Distribution):
+class CustomizedDistribution4(Distribution):
   def get_score(self, x):
     if sum(x) <= 0:
       score = 0
