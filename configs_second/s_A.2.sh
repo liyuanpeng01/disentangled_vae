@@ -15,6 +15,7 @@ python -u main.py \
 --model_type=stn \
 --rep_regularize \
 --learning_rate=5e-4 \
+--sigmoid_output \
 | tee output/${ID}/stdout.log
 
 sh anim.sh output/${ID}/

@@ -14,6 +14,7 @@ python -u main.py \
 --checkpoint_dir=checkpoints \
 --model_type=stn \
 --learning_rate=5e-4 \
+--sigmoid_output \
 | tee output/${ID}/stdout.log
 
 sh anim.sh output/${ID}/

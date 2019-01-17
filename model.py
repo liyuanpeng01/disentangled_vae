@@ -344,7 +344,7 @@ class STAE(VAE):
     return theta
 
   def _get_rotation_matrix(self, phi):
-    phi = tf.minimum(2. * math.pi, tf.maximum(0., phi))
+    phi = tf.minimum(math.pi, tf.maximum(-math.pi, phi))
     zero = tf.zeros(tf.shape(phi))
     one = tf.ones(tf.shape(phi))
 
@@ -420,9 +420,11 @@ class STAE(VAE):
     hsize = 64
     out_size = (csize, csize)
     c = transformer(x_tensor, A, out_size)
+    c = tf.minimum(1., tf.maximum(0., c))
 
     with tf.variable_scope("encoder"):
       c_flat = tf.reshape(c, [-1, csize * csize])
+      self.c_flat = c_flat
       self.ori_h = self.ff_network(c_flat, 1, 64, 6)
 
     with tf.variable_scope("compression"):
@@ -437,10 +439,11 @@ class STAE(VAE):
     theta2, h2 = tf.split(self.z, [4, 6], axis=1)
 
     with tf.variable_scope("decoder"):
-      c_hat_flat = self.ff_network(h2, 1, 64, hsize * hsize)
-      c_hat = tf.reshape(c_hat_flat, [-1, hsize, hsize, 1])
+      c_hat_flat = self.ff_network(h2, 2, 64, hsize * hsize)
+      self.c_hat_flat = c_hat_flat
       if self.flags.sigmoid_output:
-        c_hat = tf.nn.sigmoid(c_hat)
+        c_hat_flat = tf.nn.sigmoid(c_hat_flat)
+      c_hat = tf.reshape(c_hat_flat, [-1, hsize, hsize, 1])
       #else:
         #c_hat = tf.maximum(0., c_hat)
         #c_hat = tf.minimum(1., c_hat)
@@ -451,15 +454,27 @@ class STAE(VAE):
     with tf.variable_scope("output_transform_matrix"):
       A_inv = self._get_matrix(theta2, inverse=True)
     x_hat = transformer(c_hat, A_inv, (64, 64))
-
-    if not self.flags.sigmoid_output:
-      x_hat = tf.maximum(0., x_hat)
-      x_hat = tf.minimum(1., x_hat)
+    x_hat = tf.minimum(1., tf.maximum(0., x_hat))
 
     self.x_out = tf.reshape(x_hat, [-1, 64 * 64], name="x_out")
 
     self.z_mean = self.z
     self.z_log_sigma_sq = self.z
+
+  def _xent(self, a, b):
+    epsilon = tf.constant(1e-32, dtype=tf.float64)
+    b = tf.cast(b, tf.float64)
+    a = tf.cast(a, tf.float64)
+    pos = -tf.multiply(a, tf.log(tf.maximum(epsilon, b)))
+    neg = - tf.multiply(1 - a, tf.log(tf.maximum(epsilon, 1 - b)))
+    xe = tf.reduce_sum(pos + neg, 1)
+    return tf.reduce_mean(xe)
+
+  def _xent_logits(self, a, b):
+    reconstr_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=a, logits=b)
+    reconstr_loss = tf.cast(reconstr_loss, tf.float64)
+    reconstr_loss = tf.reduce_sum(reconstr_loss, 1)
+    return tf.reduce_mean(reconstr_loss)
 
   def _create_loss_optimizer(self):
     # Reconstruction loss
@@ -467,15 +482,26 @@ class STAE(VAE):
     #                                                        logits=self.x_out_logit)
     # reconstr_loss = tf.reduce_sum(reconstr_loss, 1)
     #self.reconstr_loss = tf.reduce_mean(tf.losses.sigmoid_cross_entropy(self.x, self.x_out))
-    self.reconstr_loss = tf.nn.l2_loss(self.x - self.x_out)
+    if self.flags.sigmoid_output:
+      self.reconstr_loss = self._xent(self.x, self.x_out)
+      #self.reconstr_loss += self._xent(self.c_flat, self.c_hat_flat)
+      self.reconstr_loss += self._xent_logits(self.c_flat, self.c_hat_flat)
+    else:
+      self.reconstr_loss = tf.cast(tf.nn.l2_loss(self.x - self.x_out), tf.float64)
+
+    #self.reconstr_loss = tf.losses.sigmoid_cross_entropy(self.x, self.x_out)
+    #self.reconstr_loss += tf.losses.sigmoid_cross_entropy(self.c_flat, self.c_hat_flat)
+    #self.reconstr_loss += tf.nn.l2_loss(self.c_flat - self.c_hat_flat) / (2 * 64 * 64 * 64)
+
+
 
     #self.reconstr_loss = tf.reduce_mean(reconstr_loss)
 
     if self.flags.rep_regularize:
-      self.reconstr_loss += self.flags.alpha * tf.nn.l2_loss(self.ori_h)
+      self.reconstr_loss += tf.cast(self.flags.alpha * tf.nn.l2_loss(self.ori_h), tf.float64)
 
     if self.flags.rep_regularize_l1:
-        self.reconstr_loss += self.flags.alpha * tf.reduce_sum(tf.abs(self.ori_h))
+        self.reconstr_loss += tf.cast(self.flags.alpha * tf.reduce_sum(tf.abs(self.ori_h)), tf.float64)
 
 
     # Latent loss
