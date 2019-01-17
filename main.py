@@ -83,16 +83,16 @@ def train(sess,
     # Shuffle image indices
     #random.shuffle(indices)
     indices = manager.get_dependent_indices(n_samples)
-    a = []
-    for index in indices:
-      shape = index // (32 * 32 * 40 * 6)
-      scale = (index // (32 * 32 * 40)) % 6
-      rotation = (index // (32 * 32)) % 40
-      x = (index // 32) % 32
-      y = index % 32
-      #latents = [0, shape, scale, rotation, x, y]
-      latents = [0, ss, 2, rotation, x, y]
-      a.append(manager.get_index(latents))
+#    a = []
+#    for index in indices:
+#      shape = index // (32 * 32 * 40 * 6)
+#      scale = (index // (32 * 32 * 40)) % 6
+#      rotation = (index // (32 * 32)) % 40
+#      x = (index // 32) % 32
+#      y = index % 32
+#      #latents = [0, shape, scale, rotation, x, y]
+#      latents = [0, ss, 2, rotation, x, y]
+#      a.append(manager.get_index(latents))
     #indices = a
 
     if flags.short_training:
@@ -218,7 +218,7 @@ def transform_check(sess, model, manager):
             for j in xrange(32):
               img = manager.get_image(
                 shape=shape, scale=scale, orientation=orientation, x=i, y=j)
-              a.append([scale, orientation, i, j])
+              a.append([shape, scale, orientation, i, j])
               batch_xs.append(img)
           z_mean, _ = model.transform(sess, batch_xs)
           b.extend(z_mean)
@@ -236,11 +236,15 @@ def transform_check(sess, model, manager):
       b.extend(z_mean)
 
   elif flags.task_type == 'shape_position_scale':
+    stride = 4
+    nodes = 32 / stride
     for shape in xrange(3):
       for scale in xrange(6):
         batch_xs = []
-        for i in xrange(32):
-          for j in xrange(32):
+        for i in xrange(nodes):
+          i *= stride
+          for j in xrange(nodes):
+            j *= stride
             img = manager.get_image(
               shape=shape, scale=scale, orientation=orientation, x=i, y=j)
             a.append([scale, i, j])

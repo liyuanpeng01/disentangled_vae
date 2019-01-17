@@ -1,5 +1,3 @@
-# from E.sh
-
 ID=$(basename "$0" | sed "s/.sh$//g")
 cd $(dirname $(dirname $(readlink -f $0)))
 
@@ -14,9 +12,10 @@ python -u main.py \
 --dist_type=customize \
 --epoch_size=100 \
 --checkpoint_dir=checkpoints \
---model_type=beta \
---gamma=1.0 \
+--model_type=stn \
+--learning_rate=5e-4 \
+--short_training \
+--short_training \
 | tee output/${ID}/stdout.log
-
 
 sh anim.sh output/${ID}/

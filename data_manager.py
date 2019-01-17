@@ -7,13 +7,48 @@ import numpy as np
 import math
 
 class Distribution(object):
+  def convert(self, v, r):
+    boarder = v == 0 or v == r - 1
+    value = (2. * v) / (r - 1.) - 1
+    return value, boarder
+
+  def get_scores(self, x):
+    assert len(x) == 5
+    max_border = 0
+    scores = []
+    for shape in range(x[0]):
+      a, ba = self.convert(shape, x[0])
+      for scale in range(x[1]):
+        b, bb = self.convert(scale, x[1])
+        for rotation in range(x[2]):
+          c, bc = self.convert(rotation, x[2])
+          for horizon in range(x[3]):
+            d, bd = self.convert(horizon, x[3])
+            for vertical in range(x[4]):
+              e, be = self.convert(vertical, x[4])
+              v = [a, b, c, d, e]
+              score = self.get_score(v)
+              scores.append(score)
+              if bb or bc or bd or be:
+                max_border = max(max_border, score)
+    print("max boarder", max_border)
+    scores = [max(0, score - max_border) for score in scores]
+
+    count = 0
+    for score in scores:
+      if score > 0:
+        count += 1
+    print("valid values", count, len(scores), (100. * count) / len(scores))
+
+    return scores
+
   def get_distribution(self, x):
-    x.reverse()
+    #x.reverse()
     scores = self.get_scores(x)
     ss = sum(scores)
     return [x / ss for x in scores]
 
-  def get_scores(self, valuables, values=[]):
+  def get_scores1(self, valuables, values=[]):
     if len(valuables) == 0:
       return [self.get_score(values)]
     dist = []
@@ -51,13 +86,38 @@ class GaussianDistribution(Distribution):
 
 class CustomizedDistribution(Distribution):
   def get_score(self, x):
-    type = x[0]
-    x = x[1:]
+    shape = x[0]
+    #x = x[1:]
+    x[0] *= 0.1
     score = 0
     for i in xrange(len(x)):
       for j in xrange(i, len(x)):
-        score += x[i] * x[j]
-    score *= (2 + type)
+        s = x[i] * x[j]
+        score += s
+    #score *= (1 + 0.01 * shape)
+    #score *= 2
+    score = math.exp(-score)
+    return score
+
+class CustomizedDistribution_alpha(Distribution):
+  def get_score(self, x):
+    a = x[-1]
+    b = x[-2]
+    c = x[-3]
+    d = x[-4]
+    #score = a**2 + b**2 + a * b
+    score = a ** 2 + b ** 2 + c ** 2 + a * b + a * c + b * c
+    score += d **2 + d * (a + b + c)
+    score = math.exp(-2 * score)
+    return score
+
+class CustomizedDistribution6(Distribution):
+  def get_score(self, x):
+    type = x[0]
+    x = x[1:]
+    s = sum(x)
+    score = s * s
+    score *= (4 + type)
     score = math.exp(-score)
     return score
 
