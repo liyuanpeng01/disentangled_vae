@@ -35,6 +35,7 @@ tf.app.flags.DEFINE_boolean("short_training", False, "training or not")
 tf.app.flags.DEFINE_boolean("rep_regularize", False, "regularize representation")
 tf.app.flags.DEFINE_boolean("rep_regularize_l1", False, "regularize representation")
 tf.app.flags.DEFINE_boolean("sigmoid_output", False, "use sigmoid output")
+tf.app.flags.DEFINE_integer("compact_hidden", 6, "number of compact hidden units")
 tf.app.flags.DEFINE_float("alpha", 0.01, "alpha")
 
 flags = tf.app.flags.FLAGS
@@ -72,6 +73,8 @@ def train(sess,
   reconstruct_check_images.append(manager.get_image(0, 3, 0, xx, yy))
   reconstruct_check_images.append(manager.get_image(0, 4, 0, xx, yy))
   reconstruct_check_images.append(manager.get_image(0, 5, 0, xx, yy))
+  reconstruct_check_images.append(manager.get_image(2, 5, 5, 30, 2))
+  reconstruct_check_images.append(manager.get_image(2, 2, 0, 16, 16))
 
   #indices = list(range(n_samples))
 
@@ -164,7 +167,7 @@ def disentangle_check(sess, model, manager, save_original=False):
 
   # Save disentangled images
   z_m = z_mean[0]
-  n_z = 10
+  n_z = flags.compact_hidden + 4
 
   if not os.path.exists(my_path + "disentangle_img"):
     os.mkdir(my_path + "disentangle_img")

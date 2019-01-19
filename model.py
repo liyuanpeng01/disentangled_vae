@@ -418,6 +418,7 @@ class STAE(VAE):
     x_tensor = tf.reshape(self.x, [-1, 64, 64, 1])
     csize = 64
     hsize = 64
+    compact_size = self.flags.compact_hidden
     out_size = (csize, csize)
     c = transformer(x_tensor, A, out_size)
     c = tf.minimum(1., tf.maximum(0., c))
@@ -425,7 +426,7 @@ class STAE(VAE):
     with tf.variable_scope("encoder"):
       c_flat = tf.reshape(c, [-1, csize * csize])
       self.c_flat = c_flat
-      self.ori_h = self.ff_network(c_flat, 1, 64, 6)
+      self.ori_h = self.ff_network(c_flat, 1, 64, compact_size)
 
     with tf.variable_scope("compression"):
       self.h = self.ori_h
@@ -436,7 +437,7 @@ class STAE(VAE):
     self.z = tf.concat([theta, self.h], axis=1, name='z')
     self.z_mean_original = tf.concat([theta, self.ori_h], axis=1, name='z_ori')
 
-    theta2, h2 = tf.split(self.z, [4, 6], axis=1)
+    theta2, h2 = tf.split(self.z, [4, compact_size], axis=1)
 
     with tf.variable_scope("decoder"):
       c_hat_flat = self.ff_network(h2, 2, 64, hsize * hsize)
