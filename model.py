@@ -430,7 +430,7 @@ class STAE(VAE):
 
     with tf.variable_scope("compression"):
       self.h = self.ori_h
-      if self.flags.rep_regularize:
+      if self.flags.rep_regularize or self.flags.rep_regularize_l1:
         noise = tf.random_normal(shape=tf.shape(self.h), dtype=tf.float32)
         self.h += noise
 
