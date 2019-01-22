@@ -13,6 +13,7 @@ from model import VAE
 from model import BetaVAE
 from model import STAE
 from data_manager import DataManager
+from real_data_manager import RealImageGenerator
 from evaluation import get_ave_recall
 
 tf.app.flags.DEFINE_integer("epoch_size", 2000, "epoch size")
@@ -37,14 +38,20 @@ tf.app.flags.DEFINE_boolean("rep_regularize_l1", False, "regularize representati
 tf.app.flags.DEFINE_boolean("sigmoid_output", False, "use sigmoid output")
 tf.app.flags.DEFINE_integer("compact_hidden", 6, "number of compact hidden units")
 tf.app.flags.DEFINE_float("alpha", 0.01, "alpha")
+tf.app.flags.DEFINE_boolean("real_data", False, "use real data")
 
 flags = tf.app.flags.FLAGS
 
 my_path = "output/" + flags.expriment_name + "/"
 
-ss = 2
-xx = 30
-yy = 2
+if flags.real_data:
+  ss = 2
+  xx = 5
+  yy = 2
+else:
+  ss = 2
+  xx = 30
+  yy = 2
 
 def train(sess,
           model,
@@ -57,24 +64,30 @@ def train(sess,
 
   #reconstruct_check_images = manager.get_random_images(10)
   reconstruct_check_images = []
-  reconstruct_check_images.append(manager.get_image(0, 2, 0, xx, yy))
-  reconstruct_check_images.append(manager.get_image(1, 2, 0, xx, yy))
-  reconstruct_check_images.append(manager.get_image(ss, 2, 0, xx, yy))
-  reconstruct_check_images.append(manager.get_image(ss, 2, 5, xx, yy))
-  reconstruct_check_images.append(manager.get_image(ss, 2, 10, xx, yy))
-  reconstruct_check_images.append(manager.get_image(ss, 2, 15, xx, yy))
-  reconstruct_check_images.append(manager.get_image(ss, 2, 20, xx, yy))
-  reconstruct_check_images.append(manager.get_image(ss, 2, 25, xx, yy))
-  reconstruct_check_images.append(manager.get_image(ss, 2, 30, xx, yy))
-  reconstruct_check_images.append(manager.get_image(ss, 2, 35, xx, yy))
-  reconstruct_check_images.append(manager.get_image(0, 0, 0, xx, yy))
-  reconstruct_check_images.append(manager.get_image(0, 1, 0, xx, yy))
-  reconstruct_check_images.append(manager.get_image(0, 2, 0, xx, yy))
-  reconstruct_check_images.append(manager.get_image(0, 3, 0, xx, yy))
-  reconstruct_check_images.append(manager.get_image(0, 4, 0, xx, yy))
-  reconstruct_check_images.append(manager.get_image(0, 5, 0, xx, yy))
-  reconstruct_check_images.append(manager.get_image(2, 5, 5, 30, 2))
-  reconstruct_check_images.append(manager.get_image(2, 2, 0, 16, 16))
+  if flags.real_data:
+    reconstruct_check_images.append(manager.get_image(0, 2, 0, xx, yy))
+    reconstruct_check_images.append(manager.get_image(1, 2, 0, xx, yy))
+    reconstruct_check_images.append(manager.get_image(2, 2, 0, xx, yy))
+    reconstruct_check_images.append(manager.get_image(3, 2, 0, xx, yy))
+  else:
+    reconstruct_check_images.append(manager.get_image(0, 2, 0, xx, yy))
+    reconstruct_check_images.append(manager.get_image(1, 2, 0, xx, yy))
+    reconstruct_check_images.append(manager.get_image(ss, 2, 0, xx, yy))
+    reconstruct_check_images.append(manager.get_image(ss, 2, 5, xx, yy))
+    reconstruct_check_images.append(manager.get_image(ss, 2, 10, xx, yy))
+    reconstruct_check_images.append(manager.get_image(ss, 2, 15, xx, yy))
+    reconstruct_check_images.append(manager.get_image(ss, 2, 20, xx, yy))
+    reconstruct_check_images.append(manager.get_image(ss, 2, 25, xx, yy))
+    reconstruct_check_images.append(manager.get_image(ss, 2, 30, xx, yy))
+    reconstruct_check_images.append(manager.get_image(ss, 2, 35, xx, yy))
+    reconstruct_check_images.append(manager.get_image(0, 0, 0, xx, yy))
+    reconstruct_check_images.append(manager.get_image(0, 1, 0, xx, yy))
+    reconstruct_check_images.append(manager.get_image(0, 2, 0, xx, yy))
+    reconstruct_check_images.append(manager.get_image(0, 3, 0, xx, yy))
+    reconstruct_check_images.append(manager.get_image(0, 4, 0, xx, yy))
+    reconstruct_check_images.append(manager.get_image(0, 5, 0, xx, yy))
+    reconstruct_check_images.append(manager.get_image(2, 5, 5, 30, 2))
+    reconstruct_check_images.append(manager.get_image(2, 2, 0, 16, 16))
 
   #indices = list(range(n_samples))
 
@@ -142,9 +155,15 @@ def reconstruct_check(sess, model, images):
     os.mkdir(my_path + "reconstr_img")
 
   for i in range(len(images)):
-    org_img = images[i].reshape(64, 64)
+    if flags.real_data:
+      org_img = images[i].reshape(64, 64, 3)
+    else:
+      org_img = images[i].reshape(64, 64)
     org_img = org_img.astype(np.float32)
-    reconstr_img = x_reconstruct[i].reshape(64, 64)
+    if flags.real_data:
+      reconstr_img = x_reconstruct[i].reshape(64, 64, 3)
+    else:
+      reconstr_img = x_reconstruct[i].reshape(64, 64)
     imsave(my_path + "reconstr_img/org_{0}.png".format(i),      org_img)
     imsave(my_path + "reconstr_img/reconstr_{0}.png".format(i), reconstr_img)
 
@@ -152,7 +171,11 @@ def reconstruct_check(sess, model, images):
 def disentangle_check(sess, model, manager, save_original=False):
   img = manager.get_image(shape=ss, scale=2, orientation=0, x=xx, y=yy)
   if save_original:
-    imsave(my_path + "original.png", img.reshape(64, 64).astype(np.float32))
+    if flags.real_data:
+      my_img = img.reshape(64, 64, 3)
+    else:
+      my_img = img.reshape(64, 64)
+    imsave(my_path + "original.png", my_img.astype(np.float32))
     
   batch_xs = [img]
   z_mean, z_log_sigma_sq = model.transform(sess, batch_xs)
@@ -191,7 +214,10 @@ def disentangle_check(sess, model, manager, save_original=False):
         else:
           z_mean2[0][i] = z_m[i]
       reconstr_img = model.generate(sess, z_mean2)
-      rimg = reconstr_img[0].reshape(64, 64)
+      if flags.real_data:
+        rimg = reconstr_img[0].reshape(64, 64, 3)
+      else:
+        rimg = reconstr_img[0].reshape(64, 64)
       imsave(my_path + "disentangle_img/check_z{0}_{1}.png".format(target_z_index,ri), rimg)
 
 
@@ -213,12 +239,16 @@ def transform_check(sess, model, manager):
       b.extend(z_mean)
 
   elif flags.task_type == 'onecolor':
-    for shape in xrange(3):
-      for scale in xrange(6):
-        for orientation in xrange(40):
+    if flags.real_data:
+      dims = [4, 4, 4, 15, 15]
+    else:
+      dims = [3, 6, 40, 32, 32]
+    for shape in xrange(dims[0]):
+      for scale in xrange(dims[1]):
+        for orientation in xrange(dims[2]):
           batch_xs = []
-          for i in xrange(32):
-            for j in xrange(32):
+          for i in xrange(dims[3]):
+            for j in xrange(dims[4]):
               img = manager.get_image(
                 shape=shape, scale=scale, orientation=orientation, x=i, y=j)
               a.append([shape, scale, orientation, i, j])
@@ -300,11 +330,17 @@ def main(argv):
   elif flags.task_type == 'shape_position_scale':
     dims = [3, 6, 1, 32, 32]
   elif flags.task_type == 'onecolor':
-    dims = [3, 6, 40, 32, 32]
+    if flags.real_data:
+      dims = [4, 4, 4, 15, 15]
+    else:
+      dims = [3, 6, 40, 32, 32]
   else:
     raise ValueError("Task type is not defined: " + flags.task_type)
 
-  manager = DataManager(flags.dist_type, dims)
+  if flags.real_data:
+    manager = RealImageGenerator(flags.dist_type, dims)
+  else:
+    manager = DataManager(flags.dist_type, dims)
   manager.load()
 
   sess = tf.Session()
@@ -313,12 +349,12 @@ def main(argv):
     model = VAE(gamma=flags.gamma,
                 capacity_limit=flags.capacity_limit,
                 capacity_change_duration=flags.capacity_change_duration,
-                learning_rate=flags.learning_rate)
+                learning_rate=flags.learning_rate, flags=flags)
   elif flags.model_type == "beta":
     model = BetaVAE(gamma=flags.gamma,
                 capacity_limit=flags.capacity_limit,
                 capacity_change_duration=flags.capacity_change_duration,
-                learning_rate=flags.learning_rate)
+                learning_rate=flags.learning_rate, flags=flags)
   elif flags.model_type == "stn":
     model = STAE(gamma=flags.gamma,
                 capacity_limit=flags.capacity_limit,

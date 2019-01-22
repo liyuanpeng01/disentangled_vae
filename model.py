@@ -33,12 +33,17 @@ class VAE(object):
                capacity_change_duration=100000,
                learning_rate=5e-4,
                flags=None):
+    self.flags=flags
+    if self.flags.real_data:
+      self.color_channels = 3
+    else:
+      self.color_channels = 1
+
     self.gamma = gamma
     self.capacity_limit = capacity_limit
     self.capacity_change_duration = capacity_change_duration
     self.learning_rate = learning_rate
-    self.flags=flags
-    
+
     # Create autoencoder network
     self._create_network()
     
@@ -127,7 +132,7 @@ class VAE(object):
   def _create_recognition_network(self, x, reuse=False):
     with tf.variable_scope("rec", reuse=reuse) as scope:
       # [filter_height, filter_width, in_channels, out_channels]
-      W_conv1, b_conv1 = self._conv2d_weight_variable([4, 4, 1,  32], "conv1")
+      W_conv1, b_conv1 = self._conv2d_weight_variable([4, 4, self.color_channels,  32], "conv1")
       W_conv2, b_conv2 = self._conv2d_weight_variable([4, 4, 32, 32], "conv2")
       W_conv3, b_conv3 = self._conv2d_weight_variable([4, 4, 32, 32], "conv3")
       W_conv4, b_conv4 = self._conv2d_weight_variable([4, 4, 32, 32], "conv4")
@@ -136,7 +141,7 @@ class VAE(object):
       W_fc3, b_fc3     = self._fc_weight_variable([256, 10],  "fc3")
       W_fc4, b_fc4     = self._fc_weight_variable([256, 10],  "fc4")
 
-      x_reshaped = tf.reshape(x, [-1, 64, 64, 1])
+      x_reshaped = tf.reshape(x, [-1, 64, 64, self.color_channels])
       h_conv1 = tf.nn.relu(self._conv2d(x_reshaped, W_conv1, 2) + b_conv1) # (32, 32)
       h_conv2 = tf.nn.relu(self._conv2d(h_conv1,    W_conv2, 2) + b_conv2) # (16, 16)
       h_conv3 = tf.nn.relu(self._conv2d(h_conv2,    W_conv3, 2) + b_conv3) # (8, 8)
@@ -158,7 +163,7 @@ class VAE(object):
       W_deconv1, b_deconv1 = self._conv2d_weight_variable([4, 4, 32, 32], "deconv1", deconv=True)
       W_deconv2, b_deconv2 = self._conv2d_weight_variable([4, 4, 32, 32], "deconv2", deconv=True)
       W_deconv3, b_deconv3 = self._conv2d_weight_variable([4, 4, 32, 32], "deconv3", deconv=True)
-      W_deconv4, b_deconv4 = self._conv2d_weight_variable([4, 4,  1, 32], "deconv4", deconv=True)
+      W_deconv4, b_deconv4 = self._conv2d_weight_variable([4, 4, self.color_channels, 32], "deconv4", deconv=True)
 
       h_fc1 = tf.nn.relu(tf.matmul(z,     W_fc1) + b_fc1)
       h_fc2 = tf.nn.relu(tf.matmul(h_fc1, W_fc2) + b_fc2)
@@ -167,14 +172,14 @@ class VAE(object):
       h_deconv2   = tf.nn.relu(self._deconv2d(h_deconv1,      W_deconv2,  8,  8, 2) + b_deconv2)
       h_deconv3   = tf.nn.relu(self._deconv2d(h_deconv2,      W_deconv3, 16, 16, 2) + b_deconv3)
       h_deconv4   =            self._deconv2d(h_deconv3,      W_deconv4, 32, 32, 2) + b_deconv4
-      
-      x_out_logit = tf.reshape(h_deconv4, [-1, 64*64*1])
+
+      x_out_logit = tf.reshape(h_deconv4, [-1, 64*64*self.color_channels])
       return x_out_logit
 
     
   def _create_network(self):
     # tf Graph input
-    self.x = tf.placeholder(tf.float32, shape=[None, 4096])
+    self.x = tf.placeholder(tf.float32, shape=[None, 4096 * self.color_channels])
     
     with tf.variable_scope("vae"):
       self.z_mean, self.z_log_sigma_sq = self._create_recognition_network(self.x)
@@ -320,7 +325,7 @@ class STAE(VAE):
       # %% We'll setup the two-layer localisation network to figure out the
       # %% parameters for an affine transformation of the input
       # %% Create variables for fully connected layer
-      W_fc_loc1 = weight_variable([64 * 64, hidden_size])
+      W_fc_loc1 = weight_variable([64 * 64 * self.color_channels, hidden_size])
       b_fc_loc1 = bias_variable([hidden_size])
 
       W_fc_loc2 = weight_variable([hidden_size, 4])
@@ -407,7 +412,7 @@ class STAE(VAE):
 
   def _create_network(self):
     # tf Graph input
-    self.x = tf.placeholder(tf.float32, shape=[None, 4096], name='x')
+    self.x = tf.placeholder(tf.float32, shape=[None, 4096 * self.color_channels], name='x')
 
     # localization
     theta = self._create_localization_network(self.x)
@@ -415,7 +420,7 @@ class STAE(VAE):
     with tf.variable_scope("input_transform_matrix"):
       A = self._get_matrix(theta)
 
-    x_tensor = tf.reshape(self.x, [-1, 64, 64, 1])
+    x_tensor = tf.reshape(self.x, [-1, 64, 64, self.color_channels])
     csize = 64
     hsize = 64
     compact_size = self.flags.compact_hidden
@@ -424,7 +429,7 @@ class STAE(VAE):
     c = tf.minimum(1., tf.maximum(0., c))
 
     with tf.variable_scope("encoder"):
-      c_flat = tf.reshape(c, [-1, csize * csize])
+      c_flat = tf.reshape(c, [-1, csize * csize * self.color_channels])
       self.c_flat = c_flat
       self.ori_h = self.ff_network(c_flat, 1, 64, compact_size)
 
@@ -440,11 +445,11 @@ class STAE(VAE):
     theta2, h2 = tf.split(self.z, [4, compact_size], axis=1)
 
     with tf.variable_scope("decoder"):
-      c_hat_flat = self.ff_network(h2, 2, 64, hsize * hsize)
+      c_hat_flat = self.ff_network(h2, 2, 64, hsize * hsize * self.color_channels)
       self.c_hat_flat = c_hat_flat
       if self.flags.sigmoid_output:
         c_hat_flat = tf.nn.sigmoid(c_hat_flat)
-      c_hat = tf.reshape(c_hat_flat, [-1, hsize, hsize, 1])
+      c_hat = tf.reshape(c_hat_flat, [-1, hsize, hsize, self.color_channels])
       #else:
         #c_hat = tf.maximum(0., c_hat)
         #c_hat = tf.minimum(1., c_hat)
@@ -457,7 +462,7 @@ class STAE(VAE):
     x_hat = transformer(c_hat, A_inv, (64, 64))
     x_hat = tf.minimum(1., tf.maximum(0., x_hat))
 
-    self.x_out = tf.reshape(x_hat, [-1, 64 * 64], name="x_out")
+    self.x_out = tf.reshape(x_hat, [-1, 64 * 64 * self.color_channels], name="x_out")
 
     self.z_mean = self.z
     self.z_log_sigma_sq = self.z

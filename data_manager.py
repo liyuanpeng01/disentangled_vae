@@ -99,6 +99,17 @@ class CustomizedDistribution(Distribution):
     score = math.exp(-score)
     return score
 
+class RealCustomizedDistribution(Distribution):
+  def get_score(self, x):
+    x[0] *= 0.1
+    score = 0
+    for i in xrange(len(x)):
+      score += x[i] * x[i]
+      for j in xrange(i, len(x)):
+        score += x[i] * x[j]
+    score = math.exp(-score)
+    return score
+
 class CustomizedDistribution_alpha(Distribution):
   def get_score(self, x):
     a = x[-1]
@@ -193,6 +204,9 @@ class DataManager(object):
     elif dist_type == 'customize':
       dist = CustomizedDistribution()
       self.dist = dist.get_distribution(dims)
+    elif dist_type == 'real_scustomize':
+      dist = RealCustomizedDistribution()
+      self.dist = dist.get_distribution(dims)
     else:
       with open(dist_type, 'r') as f:
         self.dist = [float(x) for x in f.readlines()]
@@ -235,11 +249,14 @@ class DataManager(object):
     index = self.get_index(latents)
     return self.get_images([index])[0]
 
+  def reshape_image(self, img):
+      return img.reshape(4096)
+
   def get_images(self, indices):
     images = []
     for index in indices:
       img = self.imgs[index]
-      img = img.reshape(4096)
+      img = self.reshape_image(img)
       images.append(img)
     return images
 
