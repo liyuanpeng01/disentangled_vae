@@ -32,9 +32,14 @@ class VAE(object):
                capacity_limit=25.0,
                capacity_change_duration=100000,
                learning_rate=5e-4,
-               flags=None):
+               flags=None,
+               real_data=None):
     self.flags=flags
-    if self.flags.real_data:
+
+    if real_data is None:
+      real_data = self.flags.real_data
+
+    if real_data:
       self.color_channels = 3
     else:
       self.color_channels = 1
