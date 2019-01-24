@@ -169,7 +169,8 @@ def reconstruct_check(sess, model, images):
 
 
 def disentangle_check(sess, model, manager, save_original=False):
-  img = manager.get_image(shape=ss, scale=2, orientation=0, x=xx, y=yy)
+  #img = manager.get_image(shape=ss, scale=2, orientation=0, x=xx, y=yy)
+  img = manager.get_image(shape=1, scale=3, orientation=20, x=16, y=16)
   if save_original:
     if flags.real_data:
       my_img = img.reshape(64, 64, 3)
@@ -204,7 +205,11 @@ def disentangle_check(sess, model, manager, save_original=False):
 
   for target_z_index in range(n_z):
     for ri in range(n_z):
-      value = -rng + ((2 * rng) / 9.0) * ri
+      if flags.model_type == "stn" and target_z_index == 1:
+        my_rng = 3
+        value = ((2 * my_rng) / 9.0) * ri
+      else:
+        value = -rng + ((2 * rng) / 9.0) * ri
       z_mean2 = np.zeros((1, n_z))
       for i in range(n_z):
         if( i == target_z_index ):
@@ -288,10 +293,8 @@ def transform_check(sess, model, manager):
   else:
     raise ValueError("Task type is not defined: " + flags.task_type)
 
-  for j in range(4):
-    with open(my_path + 'align_' + str(j) + '.log', 'w') as f:
-      for x, y in zip(a, b):
-        f.write(str(x[j]) + '\t' + str(y[j]) + '\n')
+  my_a = a
+  my_b = b
 
   a = np.transpose(a)
   b = np.transpose(b)
@@ -299,6 +302,12 @@ def transform_check(sess, model, manager):
   avg_coef, cor_list = get_ave_recall(a, b)
   print("Average correlation coefficient: ", avg_coef)
   print(cor_list)
+
+  for j in range(5):
+    with open(my_path + 'align_' + str(j) + '.log', 'w') as f:
+      k = cor_list[j][0]
+      for x, y in zip(my_a, my_b):
+        f.write(str(x[j]) + '\t' + str(y[k]) + '\n')
 
 
 def load_checkpoints(sess):
@@ -377,7 +386,8 @@ def main(argv):
     reconstruct_check(sess, model, reconstruct_check_images)
     # Disentangle check
     disentangle_check(sess, model, manager)
-  
+
+    transform_check(sess, model, manager)
 
 if __name__ == '__main__':
   tf.app.run()
